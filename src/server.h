@@ -8,8 +8,8 @@ typedef struct {
     int sockfd;
 } server_t;
 
-const server_t create_default_server(const int port);
-const server_t create_server(
+server_t create_default_server(const int port);
+server_t create_server(
     const int domain,
     const int sock_type,
     const int protocol,
@@ -17,6 +17,6 @@ const server_t create_server(
     const int port,
     const int backlog);
 
-void start_server(const server_t* const server);
+void start_server(server_t* server);
 
 #endif  // __SERVER_H__

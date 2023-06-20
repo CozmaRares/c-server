@@ -1,17 +1,22 @@
 #include "server.h"
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
+#include "http.h"
 #include "utils.h"
 
-const server_t create_default_server(const int port) {
+server_t create_default_server(const int port) {
     return create_server(AF_INET, SOCK_STREAM, 0, INADDR_ANY, port, 32);
 }
-const server_t create_server(
+server_t create_server(
     const int domain,
     const int sock_type,
     const int protocol,
@@ -37,14 +42,40 @@ const server_t create_server(
     return server;
 }
 
-void start_server(const server_t* const server) {
+void* stop_server(void* arg) {
+    server_t* server = (server_t*)arg;
+    char c;
+
+    while (1) {
+        scanf("%c", &c);
+        if (c == 'q')
+            break;
+    }
+    printf("Exiting...\n");
+    shutdown(server->sockfd, SHUT_RDWR);
+    close(server->sockfd);
+    exit(0);
+    return NULL;
+}
+
+void print_ip(server_t* server) {
+    char ipAddress[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &(server->address.sin_addr), ipAddress, INET_ADDRSTRLEN);
+    printf("Server listening on: %s:%u\n", ipAddress, ntohs(server->address.sin_port));
+}
+
+void start_server(server_t* server) {
     char buffer[1024 * 128];
-    char* hello     = "HTTP/1.1 200 OK\nGMT\nContent-Type: text/html\nConnection: Closed\n\n<html><body><h1>ma-ta</h1></body></html>";
+    char* hello     = "HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: Closed\n\n<html><body><h1>ma-ta</h1></body></html>";
     int addr_length = sizeof(server->address);
     int new_sockfd;
 
+    pthread_t t;
+    pthread_create(&t, NULL, stop_server, server);
+    print_ip(server);
+
     while (1) {
-        printf("\n\nWaiting for connection\n");
+        printf("\n\n====Waiting for connection====\n");
 
         new_sockfd = accept(server->sockfd, (struct sockaddr*)&server->address, (socklen_t*)&addr_length);
         if (new_sockfd < 0)
@@ -52,7 +83,16 @@ void start_server(const server_t* const server) {
 
         read(new_sockfd, buffer, sizeof(buffer));
         printf("%s\n", buffer);
-        write(new_sockfd, hello, strlen(hello));
+
+        http_request_t req;
+        if (!create_http_request(buffer, &req)) {
+            printf("METHOD: %d\nURI: %s\nVERSION: %lf\n", req.method, req.uri, req.version);
+            write(new_sockfd, hello, strlen(hello));
+        } else {
+            close(new_sockfd);
+            exit(1);
+        }
+
         close(new_sockfd);
     }
 }
