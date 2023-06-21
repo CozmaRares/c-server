@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "utils.h"
+#include "../utils/utils.h"
 
 #define STR(literal) #literal
 

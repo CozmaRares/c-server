@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#include "ds/dict.h"
+
 void err_n_die(const char* const fmt, ...);
 int to_double(const char* const str, double* const dest, bool strict);
 

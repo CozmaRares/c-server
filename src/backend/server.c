@@ -10,8 +10,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "../utils/utils.h"
 #include "http.h"
-#include "utils.h"
 
 server_t create_default_server(const int port) {
     return create_server(AF_INET, SOCK_STREAM, 0, INADDR_ANY, port, 32);
