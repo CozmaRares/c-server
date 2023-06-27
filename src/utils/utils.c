@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void err_n_die(const char* const fmt, ...) {
     va_list args;
@@ -24,4 +25,15 @@ int to_double(const char* const str, double* const dest, bool strict) {
 
     *dest = d;
     return 0;
+}
+
+char* new_string(const char* const str) {
+    size_t len = strlen(str);
+
+    char* new_str;
+    MALLOC(char, new_str, len + 1);
+    memcpy(new_str, str, len);
+    new_str[len] = '\0';
+
+    return new_str;
 }
