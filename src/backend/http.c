@@ -2,17 +2,16 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "../utils/utils.h"
 
-#define STR(literal) #literal
-
 // lmao blaze it
 #define METH(name) \
-    { .method = name, .method_name = STR(name) }
+    { .method = name, .method_name = #name }
 
-int get_method(char* method, http_method_t* const dest) {
+int get_method(const char* const method, http_method_t* const dest) {
     struct {
         http_method_t method;
         char* method_name;
@@ -38,7 +37,40 @@ int get_method(char* method, http_method_t* const dest) {
     return 1;
 }
 
-int create_http_request(char* request, http_request_t* const dest) {
+void parse_headers(char* const headers, dict_t* const dict) {
+    queue_t* fields = create_queue();
+
+    char* line = strtok(headers, "\r");
+
+    while (line) {
+        if (line[0] == '\n')
+            line++;
+
+        if (line[0] == '\0')
+            break;
+
+        enqueue(fields, line);
+        line = strtok(NULL, "\r");
+    }
+
+    while (!queue_is_empty(fields)) {
+        dequeue(fields, &line);
+
+        char* key   = strtok(line, ":");
+        char* value = strtok(NULL, "");
+
+        // discard first space
+        if (value[0] == ' ')
+            value++;
+
+        dict_set(dict, key, value);
+        free(line);
+    }
+
+    free_queue(&fields);
+}
+
+int create_http_request(char* const request, http_request_t* const dest) {
     for (int i = 1; request[i]; i++)
         if (request[i - 1] == '\n' && request[i] == '\n')
             request[i] = '|';
@@ -63,8 +95,16 @@ int create_http_request(char* request, http_request_t* const dest) {
     }
 
     dest->method  = method;
-    dest->uri     = uri;
+    dest->uri     = new_string(uri);
     dest->version = version;
 
+    dest->headers = create_default_dict();
+    parse_headers(headers, dest->headers);
+
     return 0;
+}
+
+void free_http_request(http_request_t* const req) {
+    free(req->uri);
+    free_dict(&req->headers);
 }

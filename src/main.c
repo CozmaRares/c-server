@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -7,7 +8,7 @@ int main(int argc, char** argv) {
     int port = 8080;
 
     if (argc == 2) {
-        int is_number = 1;
+        bool is_number = true;
         for (int i = 0; argv[1][i] && is_number; i++)
             is_number = argv[1][i] >= '0' && argv[1][i] <= '9';
 

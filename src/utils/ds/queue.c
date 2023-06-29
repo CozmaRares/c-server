@@ -1,5 +1,7 @@
 #include "queue.h"
 
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,10 +36,10 @@ queue_t* create_queue() {
 void free_node(struct node* n, bool free_list) {
     if (n == NULL)
         return;
-
-    if (free_list)
-        free_node(n, free_list);
-    free(n->value);
+    if (free_list) {
+        free_node(n->next, free_list);
+        free(n->value);
+    }
     free(n);
 }
 
@@ -63,7 +65,7 @@ int dequeue(queue_t* const queue, char** const dest) {
     else
         queue->head = queue->head->next;
 
-    *dest = new_string(n->value);
+    *dest = n->value;
 
     free_node(n, false);
     return 0;

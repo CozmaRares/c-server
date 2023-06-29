@@ -14,72 +14,66 @@ struct entry {
     struct entry* next;
 };
 
-struct entry* create_entry(const char* const key, const char* const value) {
-    struct entry* e = malloc(sizeof(struct entry));
-
-    size_t key_len   = strlen(key);
-    size_t value_len = strlen(value);
-
-    e->key   = malloc(key_len + 1);
-    e->value = malloc(value_len + 1);
-
-    if (e->key == NULL || e->value == NULL)
-        err_n_die("Not enough memory to create dict entry");
-
-    e->next = NULL;
-
-    memcpy(e->key, key, key_len);
-    memcpy(e->value, value, value_len);
-    e->key[key_len]   = '\0';
-    e->key[value_len] = '\0';
-
-    return e;
-}
-
 struct dict_t {
     struct entry** entries;
     unsigned size;
 };
 
+struct entry* create_entry(const char* const key, const char* const value) {
+    struct entry* e;
+    MALLOC(struct entry, e, 1);
+
+    e->key   = new_string(key);
+    e->value = new_string(value);
+    e->next  = NULL;
+
+    return e;
+}
+
 dict_t* create_default_dict() {
     return create_dict(MAX_DICT_SIZE);
 }
 dict_t* create_dict(unsigned size) {
-    dict_t* dict = malloc(sizeof(dict_t));
+    dict_t* dict;
 
-    if (dict == NULL)
-        err_n_die("Not enough memory for dict creation");
+    if (size > MAX_DICT_SIZE)
+        size = MAX_DICT_SIZE;
 
-    dict->size    = size;
-    dict->entries = calloc(size, sizeof(struct entry*));
-
-    if (dict->entries == NULL)
-        err_n_die("Not enough memory for dict creation");
+    MALLOC(dict_t, dict, 1);
+    dict->size = size;
+    CALLOC(struct entry*, dict->entries, size);
 
     return dict;
 }
 
 void free_list(struct entry* e) {
-    if (e->next)
-        free_list(e->next);
+    if (e == NULL)
+        return;
+    free_list(e->next);
+    free(e->key);
+    free(e->value);
     free(e);
 }
 
-void free_dict(dict_t* const dict) {
-    for (int i = 0; i < dict->size; i++)
-        if (dict->entries[i])
-            free_list(dict->entries[i]);
+void free_dict(dict_t** const dict) {
+    dict_t* d = *dict;
+    for (int i = 0; i < d->size; i++)
+        if (d->entries[i])
+            free_list(d->entries[i]);
 
-    free(dict->entries);
-    dict->entries = NULL;
-    dict->size    = 0;
+    free(d->entries);
+    d->entries = NULL;
+    d->size    = 0;
+
+    free(d);
+    *dict = NULL;
 }
 
 int hash(const dict_t* const dict, const char* const key) {
     unsigned long hash = 5381;
 
     for (int i = 0; key[i]; i++)
-        hash = ((hash << 5) + hash) + key[i];  // hash * 33 + chr
+        hash = (hash << 5) + hash + key[i];  // hash * 33 + chr
 
     return hash % dict->size;
 }
@@ -93,7 +87,7 @@ char* dict_get(const dict_t* const dict, const char* const key) {
         e = e->next;
 
     if (e != NULL)
-        return e->value;
+        return new_string(e->value);
 
     return NULL;
 }
@@ -111,17 +105,7 @@ void dict_set(const dict_t* const dict, const char* const key, const char* const
     while (e) {
         if (strcmp(key, e->key) == 0) {
             free(e->value);
-
-            size_t value_len = strlen(value);
-            e->value         = malloc(value_len + 1);
-
-            if (e->value == NULL)
-                err_n_die("Not enough memory to create dict entry");
-
-            e->next = NULL;
-
-            memcpy(e->value, value, value_len);
-            e->key[value_len] = '\0';
+            e->value = new_string(value);
         }
 
         prev = e;
@@ -129,4 +113,22 @@ void dict_set(const dict_t* const dict, const char* const key, const char* const
     }
 
     prev->next = create_entry(key, value);
+}
+
+void dict_dump(const dict_t* const dict) {
+    for (int i = 0; i < dict->size; ++i) {
+        struct entry* entry = dict->entries[i];
+
+        if (entry == NULL)
+            continue;
+
+        printf("slot[%4d]: ", i);
+
+        while (entry != NULL) {
+            printf("%s=%s ", entry->key, entry->value);
+            entry = entry->next;
+        }
+
+        printf("\n");
+    }
 }

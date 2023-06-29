@@ -87,12 +87,14 @@ void start_server(server_t* server) {
         http_request_t req;
         if (!create_http_request(buffer, &req)) {
             printf("METHOD: %d\nURI: %s\nVERSION: %lf\n", req.method, req.uri, req.version);
+            dict_dump(req.headers);
             write(new_sockfd, hello, strlen(hello));
         } else {
             close(new_sockfd);
             exit(1);
         }
 
+        free_http_request(&req);
         close(new_sockfd);
     }
 }
