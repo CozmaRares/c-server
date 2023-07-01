@@ -77,7 +77,7 @@ int create_http_request(char* const request, http_request_t* const dest) {
 
     char* request_line = strtok(request, "\n");
     char* headers      = strtok(NULL, "|");
-    char* body         = strtok(NULL, "|");
+    // char* body         = strtok(NULL, "|");
 
     http_method_t method;
     if (get_method(strtok(request_line, " "), &method)) {

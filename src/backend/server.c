@@ -1,6 +1,7 @@
 #include "server.h"
 
 #include <arpa/inet.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -8,15 +9,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "../utils/utils.h"
 #include "http.h"
 
+typedef struct stat stat_t;
+
 void print_ip(const server_t* const server);
 void handle_request(http_request_t* const req, int sockfd);
 char* read_file(const char* const path);
+void load_page(char* const path, char* const response);
+void send_file(const char* const path, char* const response);
+char* get_mime_type(const char* const extension);
 
 server_t create_default_server(const int port) {
     return create_server(AF_INET, SOCK_STREAM, 0, INADDR_ANY, port, 32);
@@ -79,7 +86,8 @@ void start_server(server_t* server) {
         if (new_sockfd < 0)
             err_n_die("Failed to open client connection\n");
 
-        read(new_sockfd, buffer, sizeof(buffer));
+        size_t bytes  = read(new_sockfd, buffer, sizeof(buffer));
+        buffer[bytes] = '\0';
         printf("%s\n", buffer);
 
         http_request_t req;
@@ -105,34 +113,109 @@ void handle_request(http_request_t* const req, int sockfd) {
     char path[30000]     = { 0 };
     char response[30000] = { 0 };
 
-    sprintf(path, "index.html");
-
-    char* contents = read_file(path);
-
-    if (contents == NULL)
-        sprintf(response, "HTTP/1.1 500 Could not open file");
-    else {
-        sprintf(response, "HTTP/1.1 200 OK\nContent-Type: text/html\n\n%s", contents);
-        free(contents);
+    if (strstr(req->uri, "..")) {
+        sprintf(response, " HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
+        goto send_response;
     }
 
-    printf("\n%s\n\n", response);
+    // TODO: handle url params
+    sprintf(path, "pages%s", req->uri);
+    if (strchr(req->uri, '.') != NULL)
+        send_file(path, response);
+    else
+        load_page(path, response);
+
+    printf("%s\n", path);
+
+send_response:
+    // printf("\n%s\n\n", response);
     write(sockfd, response, strlen(response));
 }
 
+void load_page(char* const path, char* const response) {
+    DIR* dir = opendir(path);
+
+    if (dir == NULL) {
+        sprintf(response, " HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
+        return;
+    }
+
+    strcat(path, "index.html");
+
+    send_file(path, response);
+
+    closedir(dir);
+}
+
+void send_file(const char* const path, char* const response) {
+    char* contents = read_file(path);
+    if (contents == NULL) {
+        sprintf(response, "HTTP/1.1 404 File not found");
+        return;
+    }
+
+    char* extension = strrchr(path, '.');
+
+    sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\n\n%s", get_mime_type(extension), contents);
+    free(contents);
+}
+
 char* read_file(const char* const path) {
+    stat_t status;
+
+    if (stat(path, &status) == -1 || !S_ISREG(status.st_mode))
+        return NULL;
+
     int file_fd = open(path, O_RDONLY);
 
     if (file_fd == -1)
         return NULL;
 
-    off_t file_size = lseek(file_fd, 0, SEEK_END);
-    lseek(file_fd, 0, SEEK_SET);
-
     char* contents;
-    MALLOC(char, contents, file_size + 1);
-    read(file_fd, contents, file_size);
-    contents[file_size] = '\0';
+    MALLOC(char, contents, status.st_size + 1);
+    read(file_fd, contents, status.st_size);
+    contents[status.st_size] = '\0';
 
     return contents;
+}
+
+char* get_mime_type(const char* const extension) {
+    struct {
+        char* ext;
+        char* mime_type;
+    } pairs[] = {
+        { .ext = ".html", .mime_type = "text/html" },
+        { .ext = ".css", .mime_type = "text/css" },
+        { .ext = ".js", .mime_type = "text/javascript" },
+        { .ext = ".ico", .mime_type = "image/vnd.microsoft.icon" },
+        { .ext = ".json", .mime_type = "application/json" },
+        { .ext = ".mjs", .mime_type = "text/javascript" },
+        { .ext = ".gif", .mime_type = "image/gif" },
+        { .ext = ".svg", .mime_type = "image/svg+xml" },
+        { .ext = ".jpg", .mime_type = "image/jpeg" },
+        { .ext = ".jpeg", .mime_type = "image/jpeg" },
+        { .ext = ".png", .mime_type = "image/png" },
+        { .ext = ".csv", .mime_type = "text/csv" },
+        { .ext = ".epub", .mime_type = "application/epub+zip" },
+        { .ext = ".mp3", .mime_type = "audio/mpeg" },
+        { .ext = ".mp4", .mime_type = "video/mp4" },
+        { .ext = ".mpeg", .mime_type = "video/mpeg" },
+        { .ext = ".pdf", .mime_type = "application/pdf" },
+        { .ext = ".ttf", .mime_type = "font/ttf" },
+        { .ext = ".txt", .mime_type = "text/plain" },
+        { .ext = ".wav", .mime_type = "audio/wav" },
+        { .ext = ".weba", .mime_type = "audio/webm" },
+        { .ext = ".webm", .mime_type = "video/webm" },
+        { .ext = ".webp", .mime_type = "image/webp" },
+        { .ext = ".woff", .mime_type = "font/woff" },
+        { .ext = ".woff2", .mime_type = "font/woff2" },
+    };
+    int size = sizeof(pairs) / sizeof(pairs[0]);
+
+    for (int i = 0; i < size; i++)
+        if (strcmp(extension, pairs[i].ext) == 0)
+            return new_string(pairs[i].mime_type);
+
+    // treat unknown extensions as plain text
+    return new_string("text/plain");
 }
