@@ -5,18 +5,23 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "../utils/utils.h"
 #include "http.h"
 
+#define MAX_PATH 4096
+
 typedef struct stat stat_t;
+typedef struct dirent dirent_t;
 
 void print_ip(const server_t* const server);
 void handle_request(http_request_t* const req, int sockfd);
@@ -110,10 +115,10 @@ void print_ip(const server_t* const server) {
 }
 
 void handle_request(http_request_t* const req, int sockfd) {
-    char path[30000]     = { 0 };
-    char response[30000] = { 0 };
+    char path[MAX_PATH]       = { 0 };
+    char response[256 * 1024] = { 0 };
 
-    if (strstr(req->uri, "..")) {
+    if (strstr(req->uri, "..") || strchr(req->uri, '+')) {
         sprintf(response, " HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
         goto send_response;
     }
@@ -124,8 +129,6 @@ void handle_request(http_request_t* const req, int sockfd) {
         send_file(path, response);
     else
         load_page(path, response);
-
-    printf("%s\n", path);
 
 send_response:
     // printf("\n%s\n\n", response);
@@ -139,6 +142,26 @@ void load_page(char* const path, char* const response) {
         sprintf(response, " HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
         return;
     }
+
+    dirent_t* entry;
+
+    while ((entry = readdir(dir)) != NULL)
+        if (strcmp(entry->d_name, "+server.exe") == 0) {
+            pid_t child = fork();
+
+            if (child < 0)
+                err_n_die("Fork failed\n");
+
+            if (child == 0) {
+                char* new_path;
+                MALLOC(char, new_path, MAX_PATH);
+                sprintf(new_path, "%s/%s", path, entry->d_name);
+                execlp(new_path, new_path, NULL);
+            }
+
+            waitpid(child, NULL, 0);
+            break;
+        }
 
     strcat(path, "index.html");
 
@@ -156,8 +179,11 @@ void send_file(const char* const path, char* const response) {
 
     char* extension = strrchr(path, '.');
 
-    sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\n\n%s", get_mime_type(extension), contents);
+    char* mime_type = get_mime_type(extension);
+
+    sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\n\n%s", mime_type, contents);
     free(contents);
+    free(mime_type);
 }
 
 char* read_file(const char* const path) {
