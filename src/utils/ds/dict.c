@@ -78,7 +78,7 @@ int hash(const dict_t* const dict, const char* const key) {
     return hash % dict->size;
 }
 
-char* dict_get(const dict_t* const dict, const char* const key) {
+char* dict_get(dict_t* const dict, const char* const key) {
     int h = hash(dict, key);
 
     struct entry* e = dict->entries[h];
@@ -91,7 +91,7 @@ char* dict_get(const dict_t* const dict, const char* const key) {
 
     return NULL;
 }
-void dict_set(const dict_t* const dict, const char* const key, const char* const value) {
+void dict_set(dict_t* const dict, const char* const key, const char* const value) {
     int h = hash(dict, key);
 
     struct entry* e = dict->entries[h];

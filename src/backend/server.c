@@ -15,6 +15,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../page_logic/server_includes.h"
 #include "../utils/utils.h"
 #include "http.h"
 
@@ -54,7 +55,7 @@ server_t create_server(
         err_n_die("Cannot bind socket\n");
 
     if (listen(server.sockfd, backlog) < 0)
-        err_n_die("Cannot start listening\n");
+        err_n_die("Cannot start server\n");
 
     return server;
 }
@@ -76,7 +77,7 @@ void* stop_server(void* arg) {
 }
 
 void start_server(server_t* server) {
-    char buffer[1024 * 128];
+    char request[128 * 1024];
     int addr_length = sizeof(server->address);
     int new_sockfd;
 
@@ -85,24 +86,29 @@ void start_server(server_t* server) {
     print_ip(server);
 
     while (1) {
-        printf("\n\n====Waiting for connection====\n");
+        printf("\n\n==== Waiting for connection ====\n");
 
         new_sockfd = accept(server->sockfd, (struct sockaddr*)&server->address, (socklen_t*)&addr_length);
         if (new_sockfd < 0)
             err_n_die("Failed to open client connection\n");
 
-        size_t bytes  = read(new_sockfd, buffer, sizeof(buffer));
-        buffer[bytes] = '\0';
-        printf("%s\n", buffer);
+        ssize_t bytes = read(new_sockfd, request, sizeof(request));
+
+        if (bytes < 0)
+            err_n_die("Failed to read request\n");
+
+        request[bytes] = '\0';
+        printf("%s\n", request);
 
         http_request_t req;
-        if (!create_http_request(buffer, &req))
-            handle_request(&req, new_sockfd);
-        else {
+        char* err = create_http_request(request, &req);
+        if (err) {
+            fprintf(stderr, "%s\n", err);
             close(new_sockfd);
             exit(1);
         }
 
+        handle_request(&req, new_sockfd);
         free_http_request(&req);
         close(new_sockfd);
     }
@@ -119,7 +125,7 @@ void handle_request(http_request_t* const req, int sockfd) {
     char response[256 * 1024] = { 0 };
 
     if (strstr(req->uri, "..") || strchr(req->uri, '+')) {
-        sprintf(response, " HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
+        sprintf(response, "HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
         goto send_response;
     }
 
@@ -139,7 +145,7 @@ void load_page(char* const path, char* const response) {
     DIR* dir = opendir(path);
 
     if (dir == NULL) {
-        sprintf(response, " HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
+        sprintf(response, "HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
         return;
     }
 
@@ -147,6 +153,9 @@ void load_page(char* const path, char* const response) {
 
     while ((entry = readdir(dir)) != NULL)
         if (strcmp(entry->d_name, "+server.exe") == 0) {
+            if (create_pipe() < 0)
+                err_n_die("Cannot create communication pipe\n");
+
             pid_t child = fork();
 
             if (child < 0)
@@ -156,10 +165,23 @@ void load_page(char* const path, char* const response) {
                 char* new_path;
                 MALLOC(char, new_path, MAX_PATH);
                 sprintf(new_path, "%s/%s", path, entry->d_name);
-                execlp(new_path, new_path, NULL);
+                exit(execlp(new_path, new_path, NULL));
             }
 
-            waitpid(child, NULL, 0);
+            int pipefd = open_pipe();
+            if (pipefd < 0)
+                err_n_die("Cannot open communication pipe\n");
+
+            dict_t* d = create_default_dict();
+
+            while (load_entry(pipefd, d))
+                ;
+
+            dict_dump(d);
+            free_dict(&d);
+
+            close_pipe(pipefd);
+
             break;
         }
 
@@ -183,7 +205,6 @@ void send_file(const char* const path, char* const response) {
 
     sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\n\n%s", mime_type, contents);
     free(contents);
-    free(mime_type);
 }
 
 char* read_file(const char* const path) {
@@ -240,8 +261,8 @@ char* get_mime_type(const char* const extension) {
 
     for (int i = 0; i < size; i++)
         if (strcmp(extension, pairs[i].ext) == 0)
-            return new_string(pairs[i].mime_type);
+            return pairs[i].mime_type;
 
     // treat unknown extensions as plain text
-    return new_string("text/plain");
+    return "text/plain";
 }

@@ -70,7 +70,7 @@ void parse_headers(char* const headers, dict_t* const dict) {
     free_queue(&fields);
 }
 
-int create_http_request(char* const request, http_request_t* const dest) {
+char* create_http_request(char* const request, http_request_t* const dest) {
     for (int i = 1; request[i]; i++)
         if (request[i - 1] == '\n' && request[i] == '\n')
             request[i] = '|';
@@ -80,19 +80,15 @@ int create_http_request(char* const request, http_request_t* const dest) {
     // char* body         = strtok(NULL, "|");
 
     http_method_t method;
-    if (get_method(strtok(request_line, " "), &method)) {
-        fprintf(stderr, "Unknown http method\n");
-        return 1;
-    }
+    if (get_method(strtok(request_line, " "), &method))
+        return "Unknown http method";
 
     char* uri = strtok(NULL, " ");
 
     double version;
     strtok(NULL, "/");
-    if (to_double(strtok(NULL, ""), &version, false)) {
-        fprintf(stderr, "Invalid version number\n");
-        return 1;
-    }
+    if (to_double(strtok(NULL, ""), &version, false))
+        return "Invalid version number";
 
     dest->method  = method;
     dest->uri     = new_string(uri);
@@ -101,7 +97,7 @@ int create_http_request(char* const request, http_request_t* const dest) {
     dest->headers = create_default_dict();
     parse_headers(headers, dest->headers);
 
-    return 0;
+    return NULL;
 }
 
 void free_http_request(http_request_t* const req) {

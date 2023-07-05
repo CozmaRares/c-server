@@ -22,7 +22,7 @@ typedef struct {
     dict_t* headers;
 } http_request_t;
 
-int create_http_request(char* request, http_request_t* const dest);
+char* create_http_request(char* request, http_request_t* const dest);
 void free_http_request(http_request_t* const req);
 
 #endif  // __HTTP_H__
