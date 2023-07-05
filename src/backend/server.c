@@ -185,7 +185,9 @@ void load_page(char* const path, char* const response) {
             break;
         }
 
-    strcat(path, "index.html");
+    char* index = path[strlen(path) - 1] == '/' ? "index.html" : "/index.html";
+    strcat(path, index);
+    printf("%s\n", path);
 
     send_file(path, response);
 
