@@ -43,7 +43,7 @@ void free_node(struct node* n, bool free_list) {
     free(n);
 }
 
-void free_queue(queue_t** const queue) {
+void destroy_queue(queue_t** const queue) {
     queue_t* q = *queue;
     free_node(q->head, true);
     free(q);

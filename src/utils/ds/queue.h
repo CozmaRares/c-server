@@ -6,7 +6,7 @@
 typedef struct queue_t queue_t;
 
 queue_t* create_queue();
-void free_queue(queue_t** const queue);
+void destroy_queue(queue_t** const queue);
 
 bool queue_is_empty(const queue_t* const queue);
 

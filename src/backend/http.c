@@ -37,6 +37,43 @@ int get_method(const char* const method, http_method_t* const dest) {
     return 1;
 }
 
+char* get_response_message(const http_status_code_t status) {
+    switch (status) {
+        case OK:
+            return "OK";
+        case CREATED:
+            return "CREATED";
+        case NO_CONTENT:
+            return "NO_CONTENT";
+        case PARTIAL_CONTENT:
+            return "PARTIAL_CONTENT";
+        case MOVED_PERMANENTLY:
+            return "MOVED_PERMANENTLY";
+        case FOUND:
+            return "FOUND";
+        case TEMPORARY_REDIRECT:
+            return "TEMPORARY_REDIRECT";
+        case PERMANENT_REDICRET:
+            return "PERMANENT_REDICRET";
+        case BAD_REQUEST:
+            return "BAD_REQUEST";
+        case NOT_FOUND:
+            return "NOT_FOUND";
+        case URI_TOO_LONG:
+            return "URI_TOO_LONG";
+        case REQUEST_HEADER_FIELDS_TOO_LARGE:
+            return "REQUEST_HEADER_FIELDS_TOO_LARGE";
+        case INTERNAL_SERVER_ERROR:
+            return "INTERNAL_SERVER_ERROR";
+        case NOT_IMPLEMENTED:
+            return "NOT_IMPLEMENTED";
+        case HTTP_VERSION_NOT_SUPPORTED:
+            return "HTTP_VERSION_NOT_SUPPORTED";
+    }
+
+    return NULL;
+}
+
 void parse_headers(char* const headers, dict_t* const dict) {
     queue_t* fields = create_queue();
 
@@ -67,7 +104,7 @@ void parse_headers(char* const headers, dict_t* const dict) {
         free(line);
     }
 
-    free_queue(&fields);
+    destroy_queue(&fields);
 }
 
 char* create_http_request(char* const request, http_request_t* const dest) {
@@ -77,6 +114,7 @@ char* create_http_request(char* const request, http_request_t* const dest) {
 
     char* request_line = strtok(request, "\n");
     char* headers      = strtok(NULL, "|");
+    // TODO: parse body
     // char* body         = strtok(NULL, "|");
 
     http_method_t method;
@@ -102,5 +140,30 @@ char* create_http_request(char* const request, http_request_t* const dest) {
 
 void free_http_request(http_request_t* const req) {
     free(req->uri);
-    free_dict(&req->headers);
+    destroy_dict(&req->headers);
+}
+
+char* create_http_resonse(const http_response_t* const response) {
+    long long size = 0;
+    int bytes;
+    char* resp;
+    MALLOC(char, resp, 256 * 1024);
+
+    char* response_message = get_response_message(response->status);
+
+    if (response_message == NULL) {
+        fprintf(stderr, "\n === ERROR === \nUnknown status code: %d\n\n", response->status);
+        sprintf(resp, "%d%s\n\n", INTERNAL_SERVER_ERROR, get_response_message(INTERNAL_SERVER_ERROR));
+        goto _return;
+    }
+
+    size += sprintf(resp, "%d%s\n", response->status, response_message);
+
+    // TODO: add headers
+    size += sprintf(resp + size, "\n");
+
+    sprintf(resp + size, "%s\n\n", response->body);
+
+_return:
+    return resp;
 }

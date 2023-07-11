@@ -55,7 +55,7 @@ void free_list(struct entry* e) {
     free(e);
 }
 
-void free_dict(dict_t** const dict) {
+void destroy_dict(dict_t** const dict) {
     dict_t* d = *dict;
     for (int i = 0; i < d->size; i++)
         if (d->entries[i])

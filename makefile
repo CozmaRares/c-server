@@ -11,7 +11,7 @@ SRCS = $(SRC_DIR)/main.c $(BACKEND)/server.c $(BACKEND)/http.c $(DS)/dict.c $(DS
 all: debug
 
 debug: $(srcs)
-	$(CC) -g $(SRCS) -o $(BUILD_DIR)/main $(CCFLAGS)
+	$(CC) $(SRCS) -o $(BUILD_DIR)/main $(CCFLAGS) -g
 
 build: $(srcs)
 	$(CC) $(SRCS) -o $(BUILD_DIR)/main $(CCFLAGS)

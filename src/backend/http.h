@@ -22,7 +22,43 @@ typedef struct {
     dict_t* headers;
 } http_request_t;
 
+// Taken from https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+// only included what I tought was a must have
+typedef enum {
+    // success
+    OK              = 200,
+    CREATED         = 201,
+    NO_CONTENT      = 204,
+    PARTIAL_CONTENT = 206,
+
+    // redirects
+    MOVED_PERMANENTLY  = 301,
+    FOUND              = 302,
+    TEMPORARY_REDIRECT = 307,
+    PERMANENT_REDICRET = 308,
+
+    // client error
+    BAD_REQUEST                     = 400,
+    NOT_FOUND                       = 404,
+    URI_TOO_LONG                    = 414,
+    REQUEST_HEADER_FIELDS_TOO_LARGE = 431,
+
+    // server error
+    INTERNAL_SERVER_ERROR      = 500,
+    NOT_IMPLEMENTED            = 501,
+    HTTP_VERSION_NOT_SUPPORTED = 505,
+
+} http_status_code_t;
+
+typedef struct {
+    http_status_code_t status;
+    dict_t* headers;
+    char* body;
+} http_response_t;
+
 char* create_http_request(char* request, http_request_t* const dest);
 void free_http_request(http_request_t* const req);
+
+char* create_http_resonse(const http_response_t* const response);
 
 #endif  // __HTTP_H__
