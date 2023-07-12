@@ -13,13 +13,19 @@ struct dict_t {
     unsigned size;
 };
 
-dict_entry_t* create_entry(const char* const key, const char* const value) {
+dict_entry_t* create_entry(const char* const key, void* const value, size_t value_size) {
     dict_entry_t* e;
     MALLOC(dict_entry_t, e, 1);
 
-    e->key   = new_string(key);
-    e->value = new_string(value);
-    e->next  = NULL;
+    e->key        = new_string(key);
+    e->value_size = value_size;
+    e->next       = NULL;
+
+    if (value_size) {
+        MALLOC(void, e->value, value_size);
+        memcpy(e->value, value, value_size);
+    } else
+        e->value = value;
 
     return e;
 }
@@ -45,7 +51,8 @@ void free_list(dict_entry_t* e) {
         return;
     free_list(e->next);
     free(e->key);
-    free(e->value);
+    if (e->value_size)
+        free(e->value);
     free(e);
 }
 
@@ -56,9 +63,6 @@ void destroy_dict(dict_t** const dict) {
             free_list(d->entries[i]);
 
     free(d->entries);
-    d->entries = NULL;
-    d->size    = 0;
-
     free(d);
     *dict = NULL;
 }
@@ -85,28 +89,37 @@ char* dict_get(dict_t* const dict, const char* const key) {
 
     return NULL;
 }
-void dict_set(dict_t* const dict, const char* const key, const char* const value) {
+
+void dict_set(dict_t* const dict, const char* const key, void* const value, size_t value_size) {
     int h = hash(dict, key);
 
     dict_entry_t* e = dict->entries[h];
     dict_entry_t* prev;
 
     if (e == NULL) {
-        dict->entries[h] = create_entry(key, value);
+        dict->entries[h] = create_entry(key, value, value_size);
         return;
     }
 
     while (e) {
         if (strcmp(key, e->key) == 0) {
-            free(e->value);
-            e->value = new_string(value);
+            if (e->value_size)
+                free(e->value);
+
+            e->value_size = value_size;
+
+            if (value_size) {
+                MALLOC(void, e->value, value_size);
+                memcpy(e->value, value, value_size);
+            } else
+                e->value = value;
         }
 
         prev = e;
         e    = e->next;
     }
 
-    prev->next = create_entry(key, value);
+    prev->next = create_entry(key, value, value_size);
 }
 
 void dict_for_each(const dict_t* const dict, void (*callback)(const dict_entry_t* const)) {

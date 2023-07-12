@@ -103,7 +103,7 @@ void parse_headers(char* const headers, dict_t* const dict) {
         if (value[0] == ' ')
             value++;
 
-        dict_set(dict, key, value);
+        DICT_SET_STRING(dict, key, value);
         free(line);
     }
 

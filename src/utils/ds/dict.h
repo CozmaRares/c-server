@@ -1,12 +1,15 @@
 #ifndef __DICT_H__
 #define __DICT_H__
 
-// TODO: change value to void*
+#include <stddef.h>
+
 typedef struct dict_entry {
     char* key;
-    char* value;
+    void* value;
+    size_t value_size;
     struct dict_entry* next;
 } dict_entry_t;
+
 typedef struct dict_t dict_t;
 
 dict_t* create_default_dict();
@@ -14,7 +17,10 @@ dict_t* create_dict(unsigned size);
 void destroy_dict(dict_t** const dict);
 
 char* dict_get(dict_t* const dict, const char* const key);
-void dict_set(dict_t* const dict, const char* const key, const char* const value);
+void dict_set(dict_t* const dict, const char* const key, void* const value, size_t value_size);
 void dict_for_each(const dict_t* const dict, void (*callback)(const dict_entry_t* const));
+
+#define DICT_SET_STRING(dict, key, value) \
+    dict_set(dict, key, value, strlen(value) + 1);
 
 #endif  // __DICT_H__

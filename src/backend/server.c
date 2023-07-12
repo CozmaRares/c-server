@@ -131,7 +131,7 @@ void handle_request(const server_t* const server, http_request_t* const req, int
 
     if (strstr(req->uri, "..")) {
         res.status = MOVED_PERMANENTLY;
-        dict_set(res.headers, "Location", "/404.html");
+        DICT_SET_STRING(res.headers, "Location", "/404.html");
         goto _send_response;
     }
 
@@ -173,7 +173,7 @@ void send_file(const char* const path, http_response_t* const response) {
     char* mime_type = get_mime_type(extension);
 
     response->status = OK;
-    dict_set(response->headers, "Content-Type", mime_type);
+    DICT_SET_STRING(response->headers, "Content-Type", mime_type);
     response->body = contents;
 }
 
