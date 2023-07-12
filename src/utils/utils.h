@@ -3,9 +3,6 @@
 
 #include <stdbool.h>
 
-#include "ds/dict.h"
-#include "ds/queue.h"
-
 #define MALLOC(type, name, size)                                                                                         \
     name = (type*)malloc((size) * sizeof(type));                                                                         \
     if (name == NULL) {                                                                                                  \

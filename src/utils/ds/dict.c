@@ -8,20 +8,14 @@
 
 #define MAX_DICT_SIZE 10003
 
-struct entry {
-    char* key;
-    char* value;
-    struct entry* next;
-};
-
 struct dict_t {
-    struct entry** entries;
+    dict_entry_t** entries;
     unsigned size;
 };
 
-struct entry* create_entry(const char* const key, const char* const value) {
-    struct entry* e;
-    MALLOC(struct entry, e, 1);
+dict_entry_t* create_entry(const char* const key, const char* const value) {
+    dict_entry_t* e;
+    MALLOC(dict_entry_t, e, 1);
 
     e->key   = new_string(key);
     e->value = new_string(value);
@@ -41,12 +35,12 @@ dict_t* create_dict(unsigned size) {
 
     MALLOC(dict_t, dict, 1);
     dict->size = size;
-    CALLOC(struct entry*, dict->entries, size);
+    CALLOC(dict_entry_t*, dict->entries, size);
 
     return dict;
 }
 
-void free_list(struct entry* e) {
+void free_list(dict_entry_t* e) {
     if (e == NULL)
         return;
     free_list(e->next);
@@ -81,7 +75,7 @@ int hash(const dict_t* const dict, const char* const key) {
 char* dict_get(dict_t* const dict, const char* const key) {
     int h = hash(dict, key);
 
-    struct entry* e = dict->entries[h];
+    dict_entry_t* e = dict->entries[h];
 
     while (e != NULL && strcmp(key, e->key) != 0)
         e = e->next;
@@ -94,8 +88,8 @@ char* dict_get(dict_t* const dict, const char* const key) {
 void dict_set(dict_t* const dict, const char* const key, const char* const value) {
     int h = hash(dict, key);
 
-    struct entry* e = dict->entries[h];
-    struct entry* prev;
+    dict_entry_t* e = dict->entries[h];
+    dict_entry_t* prev;
 
     if (e == NULL) {
         dict->entries[h] = create_entry(key, value);
@@ -115,20 +109,16 @@ void dict_set(dict_t* const dict, const char* const key, const char* const value
     prev->next = create_entry(key, value);
 }
 
-void dict_dump(const dict_t* const dict) {
-    for (int i = 0; i < dict->size; ++i) {
-        struct entry* entry = dict->entries[i];
+void dict_for_each(const dict_t* const dict, void (*callback)(const dict_entry_t* const)) {
+    for (int i = 0; i < dict->size; i++) {
+        dict_entry_t* entry = dict->entries[i];
 
         if (entry == NULL)
             continue;
 
-        printf("slot[%4d]: ", i);
-
-        while (entry != NULL) {
-            printf("%s=%s ", entry->key, entry->value);
+        while (entry) {
+            callback(entry);
             entry = entry->next;
         }
-
-        printf("\n");
     }
 }

@@ -1,7 +1,7 @@
 #ifndef __HTTP_H__
 #define __HTTP_H__
 
-#include "../utils/utils.h"
+#include "../utils/ds/dict.h"
 
 typedef enum {
     GET,
@@ -20,10 +20,11 @@ typedef struct {
     char* uri;
     double version;
     dict_t* headers;
+    char* body;
 } http_request_t;
 
 // Taken from https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
-// only included what I tought was a must have
+// only included what I thought was a must have
 typedef enum {
     // success
     OK              = 200,
@@ -35,7 +36,7 @@ typedef enum {
     MOVED_PERMANENTLY  = 301,
     FOUND              = 302,
     TEMPORARY_REDIRECT = 307,
-    PERMANENT_REDICRET = 308,
+    PERMANENT_REDIRECT = 308,
 
     // client error
     BAD_REQUEST                     = 400,
@@ -51,14 +52,17 @@ typedef enum {
 } http_status_code_t;
 
 typedef struct {
+    double version;
     http_status_code_t status;
     dict_t* headers;
     char* body;
 } http_response_t;
 
 char* create_http_request(char* request, http_request_t* const dest);
-void free_http_request(http_request_t* const req);
+void destroy_http_request(http_request_t* const req);
 
-char* create_http_resonse(const http_response_t* const response);
+http_response_t create_http_response();
+void destroy_http_response(http_response_t* const response);
+char* http_request_to_string(const http_response_t* const response);
 
 #endif  // __HTTP_H__

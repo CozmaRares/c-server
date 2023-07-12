@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
+#include "../utils/ds/dict.h"
+#include "../utils/ds/queue.h"
 #include "../utils/utils.h"
 
 // lmao blaze it
@@ -53,8 +56,8 @@ char* get_response_message(const http_status_code_t status) {
             return "FOUND";
         case TEMPORARY_REDIRECT:
             return "TEMPORARY_REDIRECT";
-        case PERMANENT_REDICRET:
-            return "PERMANENT_REDICRET";
+        case PERMANENT_REDIRECT:
+            return "PERMANENT_REDIRECT";
         case BAD_REQUEST:
             return "BAD_REQUEST";
         case NOT_FOUND:
@@ -114,8 +117,7 @@ char* create_http_request(char* const request, http_request_t* const dest) {
 
     char* request_line = strtok(request, "\n");
     char* headers      = strtok(NULL, "|");
-    // TODO: parse body
-    // char* body         = strtok(NULL, "|");
+    char* body         = strtok(NULL, "|");
 
     http_method_t method;
     if (get_method(strtok(request_line, " "), &method))
@@ -129,41 +131,85 @@ char* create_http_request(char* const request, http_request_t* const dest) {
         return "Invalid version number";
 
     dest->method  = method;
-    dest->uri     = new_string(uri);
     dest->version = version;
-
+    dest->uri     = new_string(uri);
+    dest->body    = body ? new_string(body) : NULL;
     dest->headers = create_default_dict();
     parse_headers(headers, dest->headers);
 
     return NULL;
 }
 
-void free_http_request(http_request_t* const req) {
+void destroy_http_request(http_request_t* const req) {
     free(req->uri);
     destroy_dict(&req->headers);
+    free(req->body);
 }
 
-char* create_http_resonse(const http_response_t* const response) {
+int pipefd[2];
+#define READ_PIPE  0
+#define WRITE_PIPE 1
+
+void write_dict_entry(const dict_entry_t* const entry) {
+    int key_len    = strlen(entry->key);
+    int value_len  = strlen(entry->value);
+    int total_size = key_len + value_len + 3;
+
+    write(pipefd[WRITE_PIPE], &total_size, sizeof(int));
+    write(pipefd[WRITE_PIPE], entry->key, key_len);
+    write(pipefd[WRITE_PIPE], ": ", 2);
+    write(pipefd[WRITE_PIPE], entry->value, value_len);
+    write(pipefd[WRITE_PIPE], "\n", 1);
+}
+
+http_response_t create_http_response() {
+    http_response_t res;
+    res.version = 1.1;
+    res.body    = NULL;
+    res.headers = create_default_dict();
+    return res;
+}
+
+void destroy_http_response(http_response_t* const response) {
+    destroy_dict(&response->headers);
+    free(response->body);
+}
+
+char* http_request_to_string(const http_response_t* const response) {
     long long size = 0;
-    int bytes;
-    char* resp;
-    MALLOC(char, resp, 256 * 1024);
+    char* res;
+    MALLOC(char, res, 256 * 1024);
+
+    // put version
+    size += sprintf(res, "HTTP/%.2g ", response->version);
 
     char* response_message = get_response_message(response->status);
 
     if (response_message == NULL) {
         fprintf(stderr, "\n === ERROR === \nUnknown status code: %d\n\n", response->status);
-        sprintf(resp, "%d%s\n\n", INTERNAL_SERVER_ERROR, get_response_message(INTERNAL_SERVER_ERROR));
-        goto _return;
+        sprintf(res + size, "%d %s\n\n", INTERNAL_SERVER_ERROR, get_response_message(INTERNAL_SERVER_ERROR));
+        return res;
     }
 
-    size += sprintf(resp, "%d%s\n", response->status, response_message);
+    // put status
+    size += sprintf(res + size, "%d %s\n", response->status, response_message);
 
-    // TODO: add headers
-    size += sprintf(resp + size, "\n");
+    // put headers
+    pipe(pipefd);
 
-    sprintf(resp + size, "%s\n\n", response->body);
+    dict_for_each(response->headers, write_dict_entry);
+    close(pipefd[WRITE_PIPE]);
 
-_return:
-    return resp;
+    int bytes;
+
+    while (read(pipefd[READ_PIPE], &bytes, sizeof(int)) > 0)
+        size += read(pipefd[READ_PIPE], res + size, bytes);
+
+    size += sprintf(res + size, "\n");
+
+    // put body
+    if (response->body)
+        sprintf(res + size, "%s\n\n", response->body);
+
+    return res;
 }

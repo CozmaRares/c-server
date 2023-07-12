@@ -1,7 +1,6 @@
 #include "server.h"
 
 #include <arpa/inet.h>
-#include <dirent.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -15,7 +14,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "../page_logic/server_includes.h"
 #include "../utils/utils.h"
 #include "http.h"
 
@@ -25,22 +23,22 @@ typedef struct stat stat_t;
 typedef struct dirent dirent_t;
 
 void print_ip(const server_t* const server);
-void handle_request(http_request_t* const req, int sockfd);
+void handle_request(const server_t* const server, http_request_t* const req, int new_sockfd);
 char* read_file(const char* const path);
-void load_page(char* const path, char* const response);
-void send_file(const char* const path, char* const response);
+void load_page(char* const path, http_response_t* const response);
+void send_file(const char* const path, http_response_t* const response);
+// void handle_api_request(http_request_t* const req, http_response_t response);
 char* get_mime_type(const char* const extension);
 
 server_t create_default_server(const int port) {
-    return create_server(AF_INET, SOCK_STREAM, 0, INADDR_ANY, port, 32);
+    return create_server(AF_INET, SOCK_STREAM, 0, INADDR_ANY, port);
 }
 server_t create_server(
     const int domain,
     const int sock_type,
     const int protocol,
     const unsigned long interface,
-    const int port,
-    const int backlog) {
+    const int port) {
     server_t server;
 
     server.address.sin_family      = domain;
@@ -54,10 +52,13 @@ server_t create_server(
     if (bind(server.sockfd, (struct sockaddr*)&server.address, sizeof(server.address)) < 0)
         err_n_die("Cannot bind socket\n");
 
-    if (listen(server.sockfd, backlog) < 0)
-        err_n_die("Cannot start server\n");
+    server.route_handlers = create_default_dict();
 
     return server;
+}
+
+void destroy_server(server_t* const server) {
+    destroy_dict(&server->route_handlers);
 }
 
 void* stop_server(void* arg) {
@@ -76,7 +77,10 @@ void* stop_server(void* arg) {
     return NULL;
 }
 
-void start_server(server_t* server) {
+void start_server(server_t* const server) {
+    if (listen(server->sockfd, 32) < 0)
+        err_n_die("Cannot start server\n");
+
     char request[128 * 1024];
     int addr_length = sizeof(server->address);
     int new_sockfd;
@@ -108,8 +112,8 @@ void start_server(server_t* server) {
             exit(1);
         }
 
-        handle_request(&req, new_sockfd);
-        free_http_request(&req);
+        handle_request(server, &req, new_sockfd);
+        destroy_http_request(&req);
         close(new_sockfd);
     }
 }
@@ -120,93 +124,57 @@ void print_ip(const server_t* const server) {
     printf("Server listening on: %s:%u\n", ipAddress, ntohs(server->address.sin_port));
 }
 
-void handle_request(http_request_t* const req, int sockfd) {
-    char path[MAX_PATH]       = { 0 };
-    char response[256 * 1024] = { 0 };
+void handle_request(const server_t* const server, http_request_t* const req, int new_sockfd) {
+    char path[MAX_PATH] = { 0 };
+    char* response;
+    http_response_t res = create_http_response();
 
-    if (strstr(req->uri, "..") || strchr(req->uri, '+')) {
-        sprintf(response, "HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
-        goto send_response;
+    if (strstr(req->uri, "..")) {
+        res.status = MOVED_PERMANENTLY;
+        dict_set(res.headers, "Location", "/404.html");
+        goto _send_response;
     }
 
-    // TODO: handle url params
+    // TODO: if server.route_handlers contains url, execute api call if url starts with '/api', or get data in dict
+    // else ....
+    if (req->method != GET) {
+        res.status = NOT_FOUND;
+        goto _send_response;
+    }
+
     sprintf(path, "pages%s", req->uri);
     if (strchr(req->uri, '.') != NULL)
-        send_file(path, response);
+        send_file(path, &res);
     else
-        load_page(path, response);
+        load_page(path, &res);
 
-send_response:
-    // printf("\n%s\n\n", response);
-    write(sockfd, response, strlen(response));
+_send_response:
+    response = http_request_to_string(&res);
+    printf("\n%s", response);
+    write(new_sockfd, response, strlen(response));
+    destroy_http_response(&res);
+    free(response);
 }
 
-void load_page(char* const path, char* const response) {
-    DIR* dir = opendir(path);
-
-    if (dir == NULL) {
-        sprintf(response, "HTTP/1.1 301 Moved Permanently\nLocation: /404.html");
-        return;
-    }
-
-    dirent_t* entry;
-
-    while ((entry = readdir(dir)) != NULL)
-        if (strcmp(entry->d_name, "+server.exe") == 0) {
-            if (create_pipe() < 0)
-                err_n_die("Cannot create communication pipe\n");
-
-            pid_t child = fork();
-
-            if (child < 0)
-                err_n_die("Fork failed\n");
-
-            if (child == 0) {
-                char* new_path;
-                MALLOC(char, new_path, MAX_PATH);
-                sprintf(new_path, "%s/%s", path, entry->d_name);
-                exit(execlp(new_path, new_path, NULL));
-            }
-
-            int pipefd = open_pipe();
-            if (pipefd < 0)
-                err_n_die("Cannot open communication pipe\n");
-
-            dict_t* d = create_default_dict();
-
-            while (load_entry(pipefd, d))
-                ;
-
-            dict_dump(d);
-            free_dict(&d);
-
-            close_pipe(pipefd);
-
-            break;
-        }
-
+void load_page(char* const path, http_response_t* const response) {
     char* index = path[strlen(path) - 1] == '/' ? "index.html" : "/index.html";
     strcat(path, index);
-    printf("%s\n", path);
-
     send_file(path, response);
-
-    closedir(dir);
 }
 
-void send_file(const char* const path, char* const response) {
+void send_file(const char* const path, http_response_t* const response) {
     char* contents = read_file(path);
     if (contents == NULL) {
-        sprintf(response, "HTTP/1.1 404 File not found");
+        response->status = NOT_FOUND;
         return;
     }
 
     char* extension = strrchr(path, '.');
-
     char* mime_type = get_mime_type(extension);
 
-    sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\n\n%s", mime_type, contents);
-    free(contents);
+    response->status = OK;
+    dict_set(response->headers, "Content-Type", mime_type);
+    response->body = contents;
 }
 
 char* read_file(const char* const path) {

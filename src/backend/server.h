@@ -3,9 +3,13 @@
 
 #include <netinet/in.h>
 
+#include "../utils/ds/dict.h"
+#include "http.h"
+
 typedef struct {
     struct sockaddr_in address;
     int sockfd;
+    dict_t* route_handlers;
 } server_t;
 
 server_t create_default_server(const int port);
@@ -14,9 +18,10 @@ server_t create_server(
     const int sock_type,
     const int protocol,
     const unsigned long interface,
-    const int port,
-    const int backlog);
+    const int port);
 
-void start_server(server_t* server);
+void register_server_route(const http_method_t method, const char* const url);
+void destroy_server(server_t* const server);
+void start_server(server_t* const server);
 
 #endif  // __SERVER_H__
