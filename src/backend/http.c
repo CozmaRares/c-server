@@ -45,33 +45,33 @@ char* get_response_message(const http_status_code_t status) {
         case OK:
             return "OK";
         case CREATED:
-            return "CREATED";
+            return "Created";
         case NO_CONTENT:
-            return "NO_CONTENT";
+            return "No Content";
         case PARTIAL_CONTENT:
-            return "PARTIAL_CONTENT";
+            return "Partial Content";
         case MOVED_PERMANENTLY:
-            return "MOVED_PERMANENTLY";
+            return "Moved Permanently";
         case FOUND:
-            return "FOUND";
+            return "Found";
         case TEMPORARY_REDIRECT:
-            return "TEMPORARY_REDIRECT";
+            return "Temporary Redirect";
         case PERMANENT_REDIRECT:
-            return "PERMANENT_REDIRECT";
+            return "Permanent Redirect";
         case BAD_REQUEST:
-            return "BAD_REQUEST";
+            return "Bad Request";
         case NOT_FOUND:
-            return "NOT_FOUND";
+            return "Not Found";
         case URI_TOO_LONG:
-            return "URI_TOO_LONG";
+            return "URI Too Long";
         case REQUEST_HEADER_FIELDS_TOO_LARGE:
-            return "REQUEST_HEADER_FIELDS_TOO_LARGE";
+            return "Request Header Fields Too Large";
         case INTERNAL_SERVER_ERROR:
-            return "INTERNAL_SERVER_ERROR";
+            return "Internal Server Error";
         case NOT_IMPLEMENTED:
-            return "NOT_IMPLEMENTED";
+            return "Not Implemented";
         case HTTP_VERSION_NOT_SUPPORTED:
-            return "HTTP_VERSION_NOT_SUPPORTED";
+            return "HTTP Version Not Supported";
     }
 
     return NULL;
@@ -110,25 +110,26 @@ void parse_headers(char* const headers, dict_t* const dict) {
     destroy_queue(&fields);
 }
 
-char* create_http_request(char* const request, http_request_t* const dest) {
+http_status_code_t create_http_request(char* const request, http_request_t* const dest) {
     for (int i = 1; request[i]; i++)
         if (request[i - 1] == '\n' && request[i] == '\n')
             request[i] = '|';
 
+    // TODO: add URI_TOO_LONG and REQUEST_HEADER_FIELDS_TOO_LARGE
     char* request_line = strtok(request, "\n");
     char* headers      = strtok(NULL, "|");
     char* body         = strtok(NULL, "|");
 
     http_method_t method;
     if (get_method(strtok(request_line, " "), &method))
-        return "Unknown http method";
+        return NOT_IMPLEMENTED;
 
     char* uri = strtok(NULL, " ");
 
     double version;
     strtok(NULL, "/");
-    if (to_double(strtok(NULL, ""), &version, false))
-        return "Invalid version number";
+    if (to_double(strtok(NULL, ""), &version, false) || version - 1.1 > 0.001)
+        return HTTP_VERSION_NOT_SUPPORTED;
 
     dest->method  = method;
     dest->version = version;
@@ -137,7 +138,7 @@ char* create_http_request(char* const request, http_request_t* const dest) {
     dest->headers = create_default_dict();
     parse_headers(headers, dest->headers);
 
-    return NULL;
+    return OK;
 }
 
 void destroy_http_request(http_request_t* const req) {
@@ -181,7 +182,7 @@ char* http_request_to_string(const http_response_t* const response) {
     MALLOC(char, res, 256 * 1024);
 
     // put version
-    size += sprintf(res, "HTTP/%.2g ", response->version);
+    size += sprintf(res, "HTTP/%g ", response->version);
 
     char* response_message = get_response_message(response->status);
 
@@ -209,7 +210,7 @@ char* http_request_to_string(const http_response_t* const response) {
 
     // put body
     if (response->body)
-        sprintf(res + size, "%s\n\n", response->body);
+        sprintf(res + size, "%s", response->body);
 
     return res;
 }

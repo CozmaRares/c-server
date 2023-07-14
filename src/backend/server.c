@@ -9,24 +9,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "../utils/utils.h"
 #include "http.h"
 
-#define MAX_PATH 4096
-
-typedef struct stat stat_t;
-typedef struct dirent dirent_t;
-
 void print_ip(const server_t* const server);
 void handle_request(const server_t* const server, http_request_t* const req, int new_sockfd);
-char* read_file(const char* const path);
-void load_page(char* const path, http_response_t* const response);
-void send_file(const char* const path, http_response_t* const response);
+void send_template(char* const path, http_response_t* const res);
+void send_page(char* const path, http_response_t* const res);
+void send_file(const char* const path, http_response_t* const res);
 // void handle_api_request(http_request_t* const req, http_response_t response);
 char* get_mime_type(const char* const extension);
 
@@ -57,6 +50,27 @@ server_t create_server(
     return server;
 }
 
+void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t handler) {
+    char* key;
+    MALLOC(char, key, strlen(url) + 5);
+
+    sprintf(key, "%d %s", method, url);
+
+    dict_set(server->route_handlers, key, handler, 0);
+    free(key);
+}
+
+void register_templated_page(server_t* const server, const char* const url) {
+    char* key;
+    MALLOC(char, key, strlen(url) + 6);
+
+    sprintf(key, "page %s", url);
+
+    // NOTE: find something better for the value
+    dict_set(server->route_handlers, key, (void*)1, 0);
+    free(key);
+}
+
 void destroy_server(server_t* const server) {
     destroy_dict(&server->route_handlers);
 }
@@ -70,6 +84,7 @@ void* stop_server(void* arg) {
         if (c == 'q')
             break;
     }
+
     printf("Exiting...\n");
     shutdown(server->sockfd, SHUT_RDWR);
     close(server->sockfd);
@@ -105,15 +120,19 @@ void start_server(server_t* const server) {
         printf("%s\n", request);
 
         http_request_t req;
-        char* err = create_http_request(request, &req);
-        if (err) {
-            fprintf(stderr, "%s\n", err);
-            close(new_sockfd);
-            exit(1);
+        http_status_code_t status = create_http_request(request, &req);
+        if (status != OK) {
+            http_response_t res = create_http_response();
+            res.status          = status;
+            char* response      = http_request_to_string(&res);
+            printf("%s\n\n", response);
+            write(new_sockfd, response, strlen(response));
+            destroy_http_response(&res);
+            free(response);
+        } else {
+            handle_request(server, &req, new_sockfd);
+            destroy_http_request(&req);
         }
-
-        handle_request(server, &req, new_sockfd);
-        destroy_http_request(&req);
         close(new_sockfd);
     }
 }
@@ -125,41 +144,71 @@ void print_ip(const server_t* const server) {
 }
 
 void handle_request(const server_t* const server, http_request_t* const req, int new_sockfd) {
-    char path[MAX_PATH] = { 0 };
     char* response;
-    http_response_t res = create_http_response();
+    http_response_t res;
 
     if (strstr(req->uri, "..")) {
+        res        = create_http_response();
         res.status = MOVED_PERMANENTLY;
         DICT_SET_STRING(res.headers, "Location", "/404.html");
         goto _send_response;
     }
 
-    // TODO: if server.route_handlers contains url, execute api call if url starts with '/api', or get data in dict
-    // else ....
+    // TODO: url params -> pages/user/[id]/index.tmpl
+    // TODO: url query -> /user?id=5
+    char* handler_key;
+    MALLOC(char, handler_key, strlen(req->uri) + 6);
+
+    sprintf(handler_key, "%d %s", req->method, req->uri);
+
+    route_handler_t handler = (route_handler_t)dict_get(server->route_handlers, handler_key);
+    if (handler) {
+        free(handler_key);
+        res = handler(req);
+        goto _send_response;
+    }
+
+    char path[4096] = { 0 };
+    sprintf(path, "pages%s", req->uri);
+    res = create_http_response();
+
+    sprintf(handler_key, "page %s", req->uri);
+    bool is_template = (bool)dict_get(server->route_handlers, handler_key);
+    free(handler_key);
+
+    if (is_template) {
+        send_template(path, &res);
+        goto _send_response;
+    }
+
     if (req->method != GET) {
         res.status = NOT_FOUND;
         goto _send_response;
     }
 
-    sprintf(path, "pages%s", req->uri);
     if (strchr(req->uri, '.') != NULL)
         send_file(path, &res);
     else
-        load_page(path, &res);
+        send_page(path, &res);
 
 _send_response:
     response = http_request_to_string(&res);
-    printf("\n%s", response);
+    printf("%s\n\n", response);
     write(new_sockfd, response, strlen(response));
     destroy_http_response(&res);
     free(response);
 }
 
-void load_page(char* const path, http_response_t* const response) {
+void send_template(char* const path, http_response_t* const res) {
+    char* index = path[strlen(path) - 1] == '/' ? "index.tmpl" : "/index.tmpl";
+    strcat(path, index);
+    send_file(path, res);
+}
+
+void send_page(char* const path, http_response_t* const res) {
     char* index = path[strlen(path) - 1] == '/' ? "index.html" : "/index.html";
     strcat(path, index);
-    send_file(path, response);
+    send_file(path, res);
 }
 
 void send_file(const char* const path, http_response_t* const response) {
@@ -175,25 +224,6 @@ void send_file(const char* const path, http_response_t* const response) {
     response->status = OK;
     DICT_SET_STRING(response->headers, "Content-Type", mime_type);
     response->body = contents;
-}
-
-char* read_file(const char* const path) {
-    stat_t status;
-
-    if (stat(path, &status) == -1 || !S_ISREG(status.st_mode))
-        return NULL;
-
-    int file_fd = open(path, O_RDONLY);
-
-    if (file_fd == -1)
-        return NULL;
-
-    char* contents;
-    MALLOC(char, contents, status.st_size + 1);
-    read(file_fd, contents, status.st_size);
-    contents[status.st_size] = '\0';
-
-    return contents;
 }
 
 char* get_mime_type(const char* const extension) {

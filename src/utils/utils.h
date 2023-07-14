@@ -18,5 +18,6 @@
 void err_n_die(const char* const fmt, ...);
 int to_double(const char* const str, double* const dest, bool strict);
 char* new_string(const char* const str);
+char* read_file(const char* const path);
 
 #endif  // __UTILS_H__

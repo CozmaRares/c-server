@@ -20,7 +20,10 @@ server_t create_server(
     const unsigned long interface,
     const int port);
 
-void register_server_route(const http_method_t method, const char* const url);
+typedef http_response_t (*route_handler_t)(http_request_t* const);
+
+void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t handler);
+void register_templated_page(server_t* const server, const char* const url);
 void destroy_server(server_t* const server);
 void start_server(server_t* const server);
 

@@ -58,7 +58,7 @@ typedef struct {
     char* body;
 } http_response_t;
 
-char* create_http_request(char* request, http_request_t* const dest);
+http_status_code_t create_http_request(char* const request, http_request_t* const dest);
 void destroy_http_request(http_request_t* const req);
 
 http_response_t create_http_response();

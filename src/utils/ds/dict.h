@@ -16,7 +16,7 @@ dict_t* create_default_dict();
 dict_t* create_dict(unsigned size);
 void destroy_dict(dict_t** const dict);
 
-char* dict_get(dict_t* const dict, const char* const key);
+void* dict_get(dict_t* const dict, const char* const key);
 void dict_set(dict_t* const dict, const char* const key, void* const value, size_t value_size);
 void dict_for_each(const dict_t* const dict, void (*callback)(const dict_entry_t* const));
 

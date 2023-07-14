@@ -1,8 +1,21 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "backend/http.h"
 #include "backend/server.h"
+#include "utils/utils.h"
+
+http_response_t handler(http_request_t* const req) {
+    http_response_t res = create_http_response();
+
+    res.status = OK;
+    res.body   = new_string("Hello, World!");
+    printf("From server: %s\n", res.body);
+
+    return res;
+}
 
 int main(int argc, char** argv) {
     int port = 8080;
@@ -17,5 +30,9 @@ int main(int argc, char** argv) {
     }
 
     server_t server = create_default_server(port);
+
+    register_server_route(&server, GET, "/server", handler);
+    register_templated_page(&server, "/");
+
     start_server(&server);
 }

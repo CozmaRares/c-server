@@ -76,7 +76,7 @@ int hash(const dict_t* const dict, const char* const key) {
     return hash % dict->size;
 }
 
-char* dict_get(dict_t* const dict, const char* const key) {
+void* dict_get(dict_t* const dict, const char* const key) {
     int h = hash(dict, key);
 
     dict_entry_t* e = dict->entries[h];
@@ -85,7 +85,7 @@ char* dict_get(dict_t* const dict, const char* const key) {
         e = e->next;
 
     if (e != NULL)
-        return new_string(e->value);
+        return e->value;
 
     return NULL;
 }
