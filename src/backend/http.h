@@ -39,10 +39,8 @@ typedef enum {
     PERMANENT_REDIRECT = 308,
 
     // client error
-    BAD_REQUEST                     = 400,
-    NOT_FOUND                       = 404,
-    URI_TOO_LONG                    = 414,
-    REQUEST_HEADER_FIELDS_TOO_LARGE = 431,
+    BAD_REQUEST = 400,
+    NOT_FOUND   = 404,
 
     // server error
     INTERNAL_SERVER_ERROR      = 500,

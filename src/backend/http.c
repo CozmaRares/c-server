@@ -62,10 +62,6 @@ char* get_response_message(const http_status_code_t status) {
             return "Bad Request";
         case NOT_FOUND:
             return "Not Found";
-        case URI_TOO_LONG:
-            return "URI Too Long";
-        case REQUEST_HEADER_FIELDS_TOO_LARGE:
-            return "Request Header Fields Too Large";
         case INTERNAL_SERVER_ERROR:
             return "Internal Server Error";
         case NOT_IMPLEMENTED:
@@ -115,7 +111,6 @@ http_status_code_t create_http_request(char* const request, http_request_t* cons
         if (request[i - 1] == '\n' && request[i] == '\n')
             request[i] = '|';
 
-    // TODO: add URI_TOO_LONG and REQUEST_HEADER_FIELDS_TOO_LARGE
     char* request_line = strtok(request, "\n");
     char* headers      = strtok(NULL, "|");
     char* body         = strtok(NULL, "|");

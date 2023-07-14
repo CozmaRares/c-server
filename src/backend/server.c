@@ -154,7 +154,6 @@ void handle_request(const server_t* const server, http_request_t* const req, int
         goto _send_response;
     }
 
-    // TODO: url params -> pages/user/[id]/index.tmpl
     // TODO: url query -> /user?id=5
     char* handler_key;
     MALLOC(char, handler_key, strlen(req->uri) + 6);
