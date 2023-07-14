@@ -17,9 +17,10 @@ typedef enum {
 
 typedef struct {
     http_method_t method;
-    char* uri;
+    char* url;
     double version;
     dict_t* headers;
+    dict_t* query;
     char* body;
 } http_request_t;
 

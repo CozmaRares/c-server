@@ -12,6 +12,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../utils/ds/queue.h"
 #include "../utils/utils.h"
 #include "http.h"
 
@@ -66,7 +67,7 @@ void register_templated_page(server_t* const server, const char* const url) {
 
     sprintf(key, "page %s", url);
 
-    // NOTE: find something better for the value
+    // HACK: used a dictionary as a set
     dict_set(server->route_handlers, key, (void*)1, 0);
     free(key);
 }
@@ -147,18 +148,17 @@ void handle_request(const server_t* const server, http_request_t* const req, int
     char* response;
     http_response_t res;
 
-    if (strstr(req->uri, "..")) {
+    if (strstr(req->url, "..")) {
         res        = create_http_response();
         res.status = MOVED_PERMANENTLY;
         DICT_SET_STRING(res.headers, "Location", "/404.html");
         goto _send_response;
     }
 
-    // TODO: url query -> /user?id=5
     char* handler_key;
-    MALLOC(char, handler_key, strlen(req->uri) + 6);
+    MALLOC(char, handler_key, strlen(req->url) + 6);
 
-    sprintf(handler_key, "%d %s", req->method, req->uri);
+    sprintf(handler_key, "%d %s", req->method, req->url);
 
     route_handler_t handler = (route_handler_t)dict_get(server->route_handlers, handler_key);
     if (handler) {
@@ -168,10 +168,10 @@ void handle_request(const server_t* const server, http_request_t* const req, int
     }
 
     char path[4096] = { 0 };
-    sprintf(path, "pages%s", req->uri);
+    sprintf(path, "pages%s", req->url);
     res = create_http_response();
 
-    sprintf(handler_key, "page %s", req->uri);
+    sprintf(handler_key, "page %s", req->url);
     bool is_template = (bool)dict_get(server->route_handlers, handler_key);
     free(handler_key);
 
@@ -185,7 +185,7 @@ void handle_request(const server_t* const server, http_request_t* const req, int
         goto _send_response;
     }
 
-    if (strchr(req->uri, '.') != NULL)
+    if (strchr(req->url, '.') != NULL)
         send_file(path, &res);
     else
         send_page(path, &res);

@@ -106,6 +106,31 @@ void parse_headers(char* const headers, dict_t* const dict) {
     destroy_queue(&fields);
 }
 
+void parse_query(char* const query, dict_t* const dict) {
+    if (!query)
+        return;
+
+    queue_t* q  = create_queue();
+    char* param = strtok(query, "&");
+
+    while (param) {
+        enqueue(q, param);
+        param = strtok(NULL, "&");
+    }
+
+    while (!queue_is_empty(q)) {
+        dequeue(q, &param);
+
+        char* key   = strtok(param, "=");
+        char* value = strtok(NULL, "");
+
+        DICT_SET_STRING(dict, key, value);
+        free(param);
+    }
+
+    destroy_queue(&q);
+}
+
 http_status_code_t create_http_request(char* const request, http_request_t* const dest) {
     for (int i = 1; request[i]; i++)
         if (request[i - 1] == '\n' && request[i] == '\n')
@@ -128,17 +153,22 @@ http_status_code_t create_http_request(char* const request, http_request_t* cons
 
     dest->method  = method;
     dest->version = version;
-    dest->uri     = new_string(uri);
     dest->body    = body ? new_string(body) : NULL;
     dest->headers = create_default_dict();
+    dest->query   = create_default_dict();
     parse_headers(headers, dest->headers);
+
+    dest->url   = new_string(strtok(uri, "?"));
+    char* query = strtok(NULL, "");
+    parse_query(query, dest->query);
 
     return OK;
 }
 
 void destroy_http_request(http_request_t* const req) {
-    free(req->uri);
+    free(req->url);
     destroy_dict(&req->headers);
+    destroy_dict(&req->query);
     free(req->body);
 }
 
