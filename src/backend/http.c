@@ -10,6 +10,109 @@
 #include "../utils/ds/queue.h"
 #include "../utils/utils.h"
 
+int get_method(const char* const method, http_method_t* const dest);
+char* get_response_message(const http_status_code_t status);
+void parse_headers(char* const headers, dict_t* const dict);
+void parse_query(char* const query, dict_t* const dict);
+void write_dict_entry(const dict_entry_t* const entry);
+
+http_status_code_t create_http_request(char* const request, http_request_t* const dest) {
+    for (int i = 1; request[i]; i++)
+        if (request[i - 1] == '\n' && request[i] == '\n')
+            request[i] = '|';
+
+    char* request_line = strtok(request, "\n");
+    char* headers      = strtok(NULL, "|");
+    char* body         = strtok(NULL, "|");
+
+    http_method_t method;
+    if (get_method(strtok(request_line, " "), &method))
+        return NOT_IMPLEMENTED;
+
+    char* uri = strtok(NULL, " ");
+
+    double version;
+    strtok(NULL, "/");
+    if (to_double(strtok(NULL, ""), &version, false) || version - 1.1 > 0.001)
+        return HTTP_VERSION_NOT_SUPPORTED;
+
+    dest->method  = method;
+    dest->version = version;
+    dest->body    = body ? new_string(body) : NULL;
+    dest->headers = create_default_dict();
+    dest->query   = create_default_dict();
+    parse_headers(headers, dest->headers);
+
+    dest->url   = new_string(strtok(uri, "?"));
+    char* query = strtok(NULL, "");
+    parse_query(query, dest->query);
+
+    return OK;
+}
+
+void destroy_http_request(http_request_t* const req) {
+    free(req->url);
+    destroy_dict(&req->headers);
+    destroy_dict(&req->query);
+    free(req->body);
+}
+
+http_response_t create_http_response() {
+    http_response_t res;
+    res.version = 1.1;
+    res.body    = NULL;
+    res.headers = create_default_dict();
+    return res;
+}
+
+void destroy_http_response(http_response_t* const response) {
+    destroy_dict(&response->headers);
+    free(response->body);
+}
+
+int pipefd[2];
+#define READ_PIPE  0
+#define WRITE_PIPE 1
+
+char* http_request_to_string(const http_response_t* const response) {
+    long long size = 0;
+    char* res;
+    MALLOC(char, res, 256 * 1024);
+
+    // put version
+    size += sprintf(res, "HTTP/%g ", response->version);
+
+    char* response_message = get_response_message(response->status);
+
+    if (response_message == NULL) {
+        fprintf(stderr, "\n === ERROR === \nUnknown status code: %d\n\n", response->status);
+        sprintf(res + size, "%d %s\n\n", INTERNAL_SERVER_ERROR, get_response_message(INTERNAL_SERVER_ERROR));
+        return res;
+    }
+
+    // put status
+    size += sprintf(res + size, "%d %s\n", response->status, response_message);
+
+    // put headers
+    pipe(pipefd);
+
+    dict_for_each(response->headers, write_dict_entry);
+    close(pipefd[WRITE_PIPE]);
+
+    int bytes;
+
+    while (read(pipefd[READ_PIPE], &bytes, sizeof(int)) > 0)
+        size += read(pipefd[READ_PIPE], res + size, bytes);
+
+    size += sprintf(res + size, "\n");
+
+    // put body
+    if (response->body)
+        sprintf(res + size, "%s", response->body);
+
+    return res;
+}
+
 // lmao blaze it
 #define METH(name) \
     { .method = name, .method_name = #name }
@@ -131,51 +234,6 @@ void parse_query(char* const query, dict_t* const dict) {
     destroy_queue(&q);
 }
 
-http_status_code_t create_http_request(char* const request, http_request_t* const dest) {
-    for (int i = 1; request[i]; i++)
-        if (request[i - 1] == '\n' && request[i] == '\n')
-            request[i] = '|';
-
-    char* request_line = strtok(request, "\n");
-    char* headers      = strtok(NULL, "|");
-    char* body         = strtok(NULL, "|");
-
-    http_method_t method;
-    if (get_method(strtok(request_line, " "), &method))
-        return NOT_IMPLEMENTED;
-
-    char* uri = strtok(NULL, " ");
-
-    double version;
-    strtok(NULL, "/");
-    if (to_double(strtok(NULL, ""), &version, false) || version - 1.1 > 0.001)
-        return HTTP_VERSION_NOT_SUPPORTED;
-
-    dest->method  = method;
-    dest->version = version;
-    dest->body    = body ? new_string(body) : NULL;
-    dest->headers = create_default_dict();
-    dest->query   = create_default_dict();
-    parse_headers(headers, dest->headers);
-
-    dest->url   = new_string(strtok(uri, "?"));
-    char* query = strtok(NULL, "");
-    parse_query(query, dest->query);
-
-    return OK;
-}
-
-void destroy_http_request(http_request_t* const req) {
-    free(req->url);
-    destroy_dict(&req->headers);
-    destroy_dict(&req->query);
-    free(req->body);
-}
-
-int pipefd[2];
-#define READ_PIPE  0
-#define WRITE_PIPE 1
-
 void write_dict_entry(const dict_entry_t* const entry) {
     int key_len    = strlen(entry->key);
     int value_len  = strlen(entry->value);
@@ -186,56 +244,4 @@ void write_dict_entry(const dict_entry_t* const entry) {
     write(pipefd[WRITE_PIPE], ": ", 2);
     write(pipefd[WRITE_PIPE], entry->value, value_len);
     write(pipefd[WRITE_PIPE], "\n", 1);
-}
-
-http_response_t create_http_response() {
-    http_response_t res;
-    res.version = 1.1;
-    res.body    = NULL;
-    res.headers = create_default_dict();
-    return res;
-}
-
-void destroy_http_response(http_response_t* const response) {
-    destroy_dict(&response->headers);
-    free(response->body);
-}
-
-char* http_request_to_string(const http_response_t* const response) {
-    long long size = 0;
-    char* res;
-    MALLOC(char, res, 256 * 1024);
-
-    // put version
-    size += sprintf(res, "HTTP/%g ", response->version);
-
-    char* response_message = get_response_message(response->status);
-
-    if (response_message == NULL) {
-        fprintf(stderr, "\n === ERROR === \nUnknown status code: %d\n\n", response->status);
-        sprintf(res + size, "%d %s\n\n", INTERNAL_SERVER_ERROR, get_response_message(INTERNAL_SERVER_ERROR));
-        return res;
-    }
-
-    // put status
-    size += sprintf(res + size, "%d %s\n", response->status, response_message);
-
-    // put headers
-    pipe(pipefd);
-
-    dict_for_each(response->headers, write_dict_entry);
-    close(pipefd[WRITE_PIPE]);
-
-    int bytes;
-
-    while (read(pipefd[READ_PIPE], &bytes, sizeof(int)) > 0)
-        size += read(pipefd[READ_PIPE], res + size, bytes);
-
-    size += sprintf(res + size, "\n");
-
-    // put body
-    if (response->body)
-        sprintf(res + size, "%s", response->body);
-
-    return res;
 }

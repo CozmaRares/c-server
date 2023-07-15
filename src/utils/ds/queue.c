@@ -7,6 +7,9 @@
 
 #include "../utils.h"
 
+struct node* create_node(const char* const value);
+void free_node(struct node* n, bool free_list);
+
 struct node {
     char* value;
     struct node* next;
@@ -17,30 +20,10 @@ struct queue_t {
     struct node* tail;
 };
 
-struct node* create_node(const char* const value) {
-    struct node* node;
-    MALLOC(struct node, node, 1);
-
-    node->value = new_string(value);
-    node->next  = NULL;
-
-    return node;
-}
-
 queue_t* create_queue() {
     queue_t* q;
     CALLOC(queue_t, q, 1);
     return q;
-}
-
-void free_node(struct node* n, bool free_list) {
-    if (n == NULL)
-        return;
-    if (free_list) {
-        free_node(n->next, free_list);
-        free(n->value);
-    }
-    free(n);
 }
 
 void destroy_queue(queue_t** const queue) {
@@ -78,4 +61,24 @@ void enqueue(queue_t* const queue, const char* const value) {
         queue->head = queue->tail = n;
     else
         queue->tail = queue->tail->next = n;
+}
+
+struct node* create_node(const char* const value) {
+    struct node* node;
+    MALLOC(struct node, node, 1);
+
+    node->value = new_string(value);
+    node->next  = NULL;
+
+    return node;
+}
+
+void free_node(struct node* n, bool free_list) {
+    if (n == NULL)
+        return;
+    if (free_list) {
+        free_node(n->next, free_list);
+        free(n->value);
+    }
+    free(n);
 }

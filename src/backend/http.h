@@ -59,7 +59,6 @@ typedef struct {
 
 http_status_code_t create_http_request(char* const request, http_request_t* const dest);
 void destroy_http_request(http_request_t* const req);
-
 http_response_t create_http_response();
 void destroy_http_response(http_response_t* const response);
 char* http_request_to_string(const http_response_t* const response);

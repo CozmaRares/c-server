@@ -18,10 +18,8 @@
 
 void print_ip(const server_t* const server);
 void handle_request(const server_t* const server, http_request_t* const req, int new_sockfd);
-void send_template(char* const path, http_response_t* const res);
 void send_page(char* const path, http_response_t* const res);
 void send_file(const char* const path, http_response_t* const res);
-// void handle_api_request(http_request_t* const req, http_response_t response);
 char* get_mime_type(const char* const extension);
 
 server_t create_default_server(const int port) {
@@ -58,17 +56,6 @@ void register_server_route(server_t* const server, const http_method_t method, c
     sprintf(key, "%d %s", method, url);
 
     dict_set(server->route_handlers, key, handler, 0);
-    free(key);
-}
-
-void register_templated_page(server_t* const server, const char* const url) {
-    char* key;
-    MALLOC(char, key, strlen(url) + 6);
-
-    sprintf(key, "page %s", url);
-
-    // HACK: used a dictionary as a set
-    dict_set(server->route_handlers, key, (void*)1, 0);
     free(key);
 }
 
@@ -156,27 +143,15 @@ void handle_request(const server_t* const server, http_request_t* const req, int
     }
 
     char* handler_key;
-    MALLOC(char, handler_key, strlen(req->url) + 6);
+    MALLOC(char, handler_key, strlen(req->url) + 5);
 
     sprintf(handler_key, "%d %s", req->method, req->url);
 
     route_handler_t handler = (route_handler_t)dict_get(server->route_handlers, handler_key);
-    if (handler) {
-        free(handler_key);
-        res = handler(req);
-        goto _send_response;
-    }
-
-    char path[4096] = { 0 };
-    sprintf(path, "pages%s", req->url);
-    res = create_http_response();
-
-    sprintf(handler_key, "page %s", req->url);
-    bool is_template = (bool)dict_get(server->route_handlers, handler_key);
     free(handler_key);
 
-    if (is_template) {
-        send_template(path, &res);
+    if (handler) {
+        res = handler(req);
         goto _send_response;
     }
 
@@ -185,7 +160,11 @@ void handle_request(const server_t* const server, http_request_t* const req, int
         goto _send_response;
     }
 
-    if (strchr(req->url, '.') != NULL)
+    char path[4096] = { 0 };
+    sprintf(path, "pages%s", req->url);
+    res = create_http_response();
+
+    if (strchr(req->url, '.'))
         send_file(path, &res);
     else
         send_page(path, &res);
@@ -196,12 +175,6 @@ _send_response:
     write(new_sockfd, response, strlen(response));
     destroy_http_response(&res);
     free(response);
-}
-
-void send_template(char* const path, http_response_t* const res) {
-    char* index = path[strlen(path) - 1] == '/' ? "index.tmpl" : "/index.tmpl";
-    strcat(path, index);
-    send_file(path, res);
 }
 
 void send_page(char* const path, http_response_t* const res) {

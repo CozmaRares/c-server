@@ -32,7 +32,6 @@ int main(int argc, char** argv) {
     server_t server = create_default_server(port);
 
     register_server_route(&server, GET, "/server", handler);
-    register_templated_page(&server, "/");
 
     start_server(&server);
 }
