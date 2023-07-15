@@ -1,6 +1,7 @@
 #include "http.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,9 +100,9 @@ char* http_request_to_string(const http_response_t* const response) {
     dict_for_each(response->headers, write_dict_entry);
     close(pipefd[WRITE_PIPE]);
 
-    int bytes;
+    size_t bytes;
 
-    while (read(pipefd[READ_PIPE], &bytes, sizeof(int)) > 0)
+    while (read(pipefd[READ_PIPE], &bytes, sizeof(size_t)) > 0)
         size += read(pipefd[READ_PIPE], res + size, bytes);
 
     size += sprintf(res + size, "\n");
@@ -235,11 +236,11 @@ void parse_query(char* const query, dict_t* const dict) {
 }
 
 void write_dict_entry(const dict_entry_t* const entry) {
-    int key_len    = strlen(entry->key);
-    int value_len  = strlen(entry->value);
-    int total_size = key_len + value_len + 3;
+    size_t key_len    = strlen(entry->key);
+    size_t value_len  = strlen(entry->value);
+    size_t total_size = key_len + value_len + 3;
 
-    write(pipefd[WRITE_PIPE], &total_size, sizeof(int));
+    write(pipefd[WRITE_PIPE], &total_size, sizeof(size_t));
     write(pipefd[WRITE_PIPE], entry->key, key_len);
     write(pipefd[WRITE_PIPE], ": ", 2);
     write(pipefd[WRITE_PIPE], entry->value, value_len);

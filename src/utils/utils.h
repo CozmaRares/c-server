@@ -4,13 +4,13 @@
 #include <stdbool.h>
 
 #define MALLOC(type, name, size)                                                                                         \
-    name = (type*)malloc((size) * sizeof(type));                                                                         \
+    name = (type*)malloc(((size_t)(size)) * sizeof(type));                                                               \
     if (name == NULL) {                                                                                                  \
         err_n_die("Could not allocate enough memory for " #type ", in file %s, at line: %d\n", __BASE_FILE__, __LINE__); \
     }
 
 #define CALLOC(type, name, size)                                                                                         \
-    name = (type*)calloc((size), sizeof(type));                                                                          \
+    name = (type*)calloc(((size_t)(size)), sizeof(type));                                                                \
     if (name == NULL) {                                                                                                  \
         err_n_die("Could not allocate enough memory for " #type ", in file %s, at line: %d\n", __BASE_FILE__, __LINE__); \
     }

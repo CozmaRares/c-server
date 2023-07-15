@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +8,7 @@
 #include "backend/server.h"
 #include "utils/utils.h"
 
-http_response_t handler(http_request_t* const req) {
+http_response_t handler(__attribute__((unused)) http_request_t* const req) {
     http_response_t res = create_http_response();
 
     res.status = OK;
@@ -29,9 +30,10 @@ int main(int argc, char** argv) {
             port = atoi(argv[1]);
     }
 
-    server_t server = create_default_server(port);
+    server_t server = create_default_server((uint16_t)port);
 
-    register_server_route(&server, GET, "/server", handler);
+    route_handler_t h = { .func = handler };
+    register_server_route(&server, GET, "/server", &h);
 
     start_server(&server);
 }

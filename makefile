@@ -1,21 +1,26 @@
 CC = gcc
-CCFLAGS = -Wall -fdiagnostics-color=always -pthread
+CCFLAGS = -Wall -fdiagnostics-color=always -pthread -Wextra -Wconversion -pedantic
 
-BUILD_DIR = build
-SRC_DIR = src
-BACKEND = $(SRC_DIR)/backend
-UTILS = $(SRC_DIR)/utils
+BUILD = build
+SRC = src
+TEST= test
+BACKEND = $(SRC)/backend
+UTILS = $(SRC)/utils
 DS = $(UTILS)/ds
-SRCS = $(SRC_DIR)/main.c $(BACKEND)/server.c $(BACKEND)/http.c $(DS)/dict.c $(DS)/queue.c  $(UTILS)/utils.c
+SRCS = $(SRC)/main.c $(BACKEND)/server.c $(BACKEND)/http.c $(DS)/dict.c $(DS)/queue.c $(UTILS)/utils.c
 
 all: debug
 
+.PHONY: debug
 debug: $(srcs)
-	$(CC) $(SRCS) -o $(BUILD_DIR)/main $(CCFLAGS) -g
+	$(CC) $(SRCS) -o $(BUILD)/main $(CCFLAGS) -g
 
+.PHONY: build
 build: $(srcs)
-	$(CC) $(SRCS) -o $(BUILD_DIR)/main $(CCFLAGS)
+	$(CC) $(SRCS) -o $(BUILD)/main_release $(CCFLAGS) -O2
 
+.PHONY: clean
 clean:
 	rm -r build/*
+	rm -r test/build/*
 

@@ -10,7 +10,7 @@
 
 dict_entry_t* create_entry(const char* const key, void* const value, size_t value_size);
 void free_list(dict_entry_t* e);
-int hash(const dict_t* const dict, const char* const key);
+unsigned long hash(const dict_t* const dict, const char* const key);
 
 struct dict_t {
     dict_entry_t** entries;
@@ -35,7 +35,7 @@ dict_t* create_dict(unsigned size) {
 
 void destroy_dict(dict_t** const dict) {
     dict_t* d = *dict;
-    for (int i = 0; i < d->size; i++)
+    for (unsigned i = 0; i < d->size; i++)
         if (d->entries[i])
             free_list(d->entries[i]);
 
@@ -45,7 +45,7 @@ void destroy_dict(dict_t** const dict) {
 }
 
 void* dict_get(dict_t* const dict, const char* const key) {
-    int h = hash(dict, key);
+    unsigned long h = hash(dict, key);
 
     dict_entry_t* e = dict->entries[h];
 
@@ -59,7 +59,7 @@ void* dict_get(dict_t* const dict, const char* const key) {
 }
 
 void dict_set(dict_t* const dict, const char* const key, void* const value, size_t value_size) {
-    int h = hash(dict, key);
+    unsigned long h = hash(dict, key);
 
     dict_entry_t* e = dict->entries[h];
     dict_entry_t* prev;
@@ -77,7 +77,7 @@ void dict_set(dict_t* const dict, const char* const key, void* const value, size
             e->value_size = value_size;
 
             if (value_size) {
-                MALLOC(void, e->value, value_size);
+                MALLOC(char, e->value, value_size);
                 memcpy(e->value, value, value_size);
             } else
                 e->value = value;
@@ -91,7 +91,7 @@ void dict_set(dict_t* const dict, const char* const key, void* const value, size
 }
 
 void dict_for_each(const dict_t* const dict, void (*callback)(const dict_entry_t* const)) {
-    for (int i = 0; i < dict->size; i++) {
+    for (unsigned i = 0; i < dict->size; i++) {
         dict_entry_t* entry = dict->entries[i];
 
         if (entry == NULL)
@@ -113,7 +113,7 @@ dict_entry_t* create_entry(const char* const key, void* const value, size_t valu
     e->next       = NULL;
 
     if (value_size) {
-        MALLOC(void, e->value, value_size);
+        MALLOC(char, e->value, value_size);
         memcpy(e->value, value, value_size);
     } else
         e->value = value;
@@ -131,11 +131,11 @@ void free_list(dict_entry_t* e) {
     free(e);
 }
 
-int hash(const dict_t* const dict, const char* const key) {
+unsigned long hash(const dict_t* const dict, const char* const key) {
     unsigned long hash = 5381;
 
     for (int i = 0; key[i]; i++)
-        hash = (hash << 5) + hash + key[i];  // hash * 33 + chr
+        hash = (hash << 5) + hash + (unsigned char)key[i];  // hash * 33 + chr
 
     return hash % dict->size;
 }

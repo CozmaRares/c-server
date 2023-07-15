@@ -57,7 +57,7 @@ char* read_file(const char* const path) {
 
     char* contents;
     MALLOC(char, contents, status.st_size + 1);
-    read(file_fd, contents, status.st_size);
+    read(file_fd, contents, (size_t)status.st_size);
     contents[status.st_size] = '\0';
 
     return contents;

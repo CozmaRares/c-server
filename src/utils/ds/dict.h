@@ -2,6 +2,7 @@
 #define __DICT_H__
 
 #include <stddef.h>
+#include <string.h>
 
 typedef struct dict_entry {
     char* key;

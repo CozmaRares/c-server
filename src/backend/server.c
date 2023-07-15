@@ -1,6 +1,7 @@
 #include "server.h"
 
 #include <arpa/inet.h>
+#include <bits/sockaddr.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -22,15 +23,15 @@ void send_page(char* const path, http_response_t* const res);
 void send_file(const char* const path, http_response_t* const res);
 char* get_mime_type(const char* const extension);
 
-server_t create_default_server(const int port) {
+server_t create_default_server(const uint16_t port) {
     return create_server(AF_INET, SOCK_STREAM, 0, INADDR_ANY, port);
 }
 server_t create_server(
-    const int domain,
-    const int sock_type,
+    const sa_family_t domain,
+    const uint16_t sock_type,
     const int protocol,
-    const unsigned long interface,
-    const int port) {
+    const uint32_t interface,
+    const uint16_t port) {
     server_t server;
 
     server.address.sin_family      = domain;
@@ -49,7 +50,7 @@ server_t create_server(
     return server;
 }
 
-void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t handler) {
+void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t* handler) {
     char* key;
     MALLOC(char, key, strlen(url) + 5);
 
@@ -64,6 +65,7 @@ void destroy_server(server_t* const server) {
 }
 
 void* stop_server(void* arg) {
+    pthread_detach(pthread_self());
     server_t* server = (server_t*)arg;
     char c;
 
@@ -76,6 +78,7 @@ void* stop_server(void* arg) {
     printf("Exiting...\n");
     shutdown(server->sockfd, SHUT_RDWR);
     close(server->sockfd);
+    destroy_server(server);
     exit(0);
     return NULL;
 }
@@ -90,6 +93,7 @@ void start_server(server_t* const server) {
 
     pthread_t t;
     pthread_create(&t, NULL, stop_server, server);
+
     print_ip(server);
 
     while (1) {
@@ -147,11 +151,11 @@ void handle_request(const server_t* const server, http_request_t* const req, int
 
     sprintf(handler_key, "%d %s", req->method, req->url);
 
-    route_handler_t handler = (route_handler_t)dict_get(server->route_handlers, handler_key);
+    route_handler_t* handler = dict_get(server->route_handlers, handler_key);
     free(handler_key);
 
     if (handler) {
-        res = handler(req);
+        res = handler->func(req);
         goto _send_response;
     }
 
