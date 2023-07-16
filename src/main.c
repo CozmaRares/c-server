@@ -32,8 +32,7 @@ int main(int argc, char** argv) {
 
     server_t server = create_default_server((uint16_t)port);
 
-    route_handler_t h = { .func = handler };
-    register_server_route(&server, GET, "/server", &h);
+    register_server_route(&server, GET, "/server", handler);
 
     start_server(&server);
 }

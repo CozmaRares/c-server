@@ -13,9 +13,7 @@ typedef struct {
     dict_t* route_handlers;
 } server_t;
 
-typedef struct {
-    http_response_t (*func)(http_request_t* const);
-} route_handler_t;
+typedef http_response_t (*route_handler_t)(http_request_t* const);
 
 server_t create_default_server(const uint16_t port);
 server_t create_server(
@@ -25,7 +23,7 @@ server_t create_server(
     const uint32_t interface,
     const uint16_t port);
 
-void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t* handler);
+void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t handler);
 void destroy_server(server_t* const server);
 void start_server(server_t* const server);
 

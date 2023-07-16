@@ -49,7 +49,7 @@ server_t create_server(
     return server;
 }
 
-void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t* handler) {
+void register_server_route(server_t* const server, const http_method_t method, const char* const url, route_handler_t handler) {
     char* key;
     MALLOC(char, key, strlen(url) + 5);
 
@@ -128,11 +128,12 @@ void handle_request(const server_t* const server, http_request_t* const req, int
 
     sprintf(handler_key, "%d %s", req->method, req->url);
 
-    route_handler_t* handler = dict_get(server->route_handlers, handler_key)->value;
+    dict_entry_t* entry = dict_get(server->route_handlers, handler_key);
     free(handler_key);
 
-    if (handler) {
-        res = handler->func(req);
+    if (entry) {
+        route_handler_t handler = entry->value;
+        res = handler(req);
         goto _send_response;
     }
 

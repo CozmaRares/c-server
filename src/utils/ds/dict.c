@@ -52,10 +52,7 @@ dict_entry_t* dict_get(dict_t* const dict, const char* const key) {
     while (e != NULL && strcmp(key, e->key) != 0)
         e = e->next;
 
-    if (e != NULL)
-        return e;
-
-    return NULL;
+    return e;
 }
 
 void dict_set(dict_t* const dict, const char* const key, void* const value, size_t value_size) {
