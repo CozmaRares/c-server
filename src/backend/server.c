@@ -128,7 +128,7 @@ void handle_request(const server_t* const server, http_request_t* const req, int
 
     sprintf(handler_key, "%d %s", req->method, req->url);
 
-    route_handler_t* handler = dict_get(server->route_handlers, handler_key);
+    route_handler_t* handler = dict_get(server->route_handlers, handler_key)->value;
     free(handler_key);
 
     if (handler) {

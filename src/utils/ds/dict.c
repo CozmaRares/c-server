@@ -44,7 +44,7 @@ void destroy_dict(dict_t** const dict) {
     *dict = NULL;
 }
 
-void* dict_get(dict_t* const dict, const char* const key) {
+dict_entry_t* dict_get(dict_t* const dict, const char* const key) {
     unsigned long h = hash(dict, key);
 
     dict_entry_t* e = dict->entries[h];
@@ -53,7 +53,7 @@ void* dict_get(dict_t* const dict, const char* const key) {
         e = e->next;
 
     if (e != NULL)
-        return e->value;
+        return e;
 
     return NULL;
 }
