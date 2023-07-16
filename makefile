@@ -1,5 +1,5 @@
 CC = gcc
-CCFLAGS = -Wall -fdiagnostics-color=always -pthread -Wextra -Wconversion -pedantic
+CCFLAGS = -Wall -fdiagnostics-color=always -Wextra -Wconversion -pedantic
 
 BUILD = build
 SRC = src

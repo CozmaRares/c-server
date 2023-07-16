@@ -4,7 +4,6 @@
 #include <bits/sockaddr.h>
 #include <fcntl.h>
 #include <netinet/in.h>
-#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,25 +63,6 @@ void destroy_server(server_t* const server) {
     destroy_dict(&server->route_handlers);
 }
 
-void* stop_server(void* arg) {
-    pthread_detach(pthread_self());
-    server_t* server = (server_t*)arg;
-    char c;
-
-    while (1) {
-        scanf("%c", &c);
-        if (c == 'q')
-            break;
-    }
-
-    printf("Exiting...\n");
-    shutdown(server->sockfd, SHUT_RDWR);
-    close(server->sockfd);
-    destroy_server(server);
-    exit(0);
-    return NULL;
-}
-
 void start_server(server_t* const server) {
     if (listen(server->sockfd, 32) < 0)
         err_n_die("Cannot start server\n");
@@ -90,9 +70,6 @@ void start_server(server_t* const server) {
     char request[128 * 1024];
     int addr_length = sizeof(server->address);
     int new_sockfd;
-
-    pthread_t t;
-    pthread_create(&t, NULL, stop_server, server);
 
     print_ip(server);
 
