@@ -93,7 +93,7 @@ void start_server(server_t* const server) {
         if (status != OK) {
             http_response_t res = create_http_response();
             res.status          = status;
-            char* response      = http_request_to_string(&res);
+            char* response      = http_response_to_string(&res);
             printf("%s\n\n", response);
             write(new_sockfd, response, strlen(response));
             destroy_http_response(&res);
@@ -152,7 +152,7 @@ void handle_request(const server_t* const server, http_request_t* const req, int
         send_page(path, &res);
 
 _send_response:
-    response = http_request_to_string(&res);
+    response = http_response_to_string(&res);
     printf("%s\n\n", response);
     write(new_sockfd, response, strlen(response));
     destroy_http_response(&res);

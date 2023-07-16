@@ -75,7 +75,7 @@ int pipefd[2];
 #define READ_PIPE  0
 #define WRITE_PIPE 1
 
-char* http_request_to_string(const http_response_t* const response) {
+char* http_response_to_string(const http_response_t* const response) {
     long long size = 0;
     char* res;
     MALLOC(char, res, 256 * 1024);
