@@ -19,8 +19,9 @@ than a fully production-ready solution.
 The server is designed to handle incoming HTTP requests and serve corresponding
 responses. It employs a file-based routing system, meaning that by default,
 it maps incoming requests to specific files on the server. For example, a
-request for '/home' would serve the '/home/index.html' file. This approach
-simplifies serving static content such as HTML, CSS, and JavaScript files.
+request for '/home' would serve the 'pages/home/index.html' file, or
+'/home/script.js' maps to 'pages/home/script.js' . This approach simplifies
+serving static content such as HTML, CSS, and JavaScript files.
 
 In addition to file-based routing, the server offers the flexibility to define
 custom routes. This allows developers to create dynamic routes that execute
@@ -34,9 +35,10 @@ Make sure you have _gcc_ and _make_ installed.
 
 - download or clone the repository
 - run `make` or `make debug` to build the code
-- run `./build/main` or `./build/main port_number` to start the server
+- run `./build/main port_number` or `./build/main` (port_number defaults to 8080)
+  to start the server
 - (optinal) add you own websites
-- visit `localhost:8080` or `localhost:port_number`
+- visit `localhost:port_number` or `localhost:8080`
 
 ## Reflection
 
