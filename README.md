@@ -1,18 +1,10 @@
 # HTTP server in C
 
-This project is an HTTP server implemented in the C programming language.
-The server utilizes file-based routing as the default routing mechanism but also
-provides support for defining custom routes.
-
-## Disclaimer
-
-This project is primarily developed and tested on my specific configuration, and
-therefore, there is no guarantee that it will work flawlessly on other systems or
-configurations. As this project was not intended for wide compatibility, it may
-require additional modifications or adjustments to function correctly in different
-environments. Users are encouraged to adapt the project to suit their specific
-setups and consider it as a starting point for their own implementation rather
-than a fully production-ready solution.
+> **Disclaimer** This project is primarily developed and tested on my specific configuration,
+> and therefore, there is no guarantee that it will work flawlessly on other systems
+> or configurations. As this project was not intended for wide compatibility, it
+> may require additional modifications or adjustments to function correctly in different
+> environments.
 
 ## Project Description
 
@@ -78,7 +70,7 @@ other server-side functionality required by the application.
    or
 
    ```sh
-   ./build/main port_number
+   ./build/main <port_number>
    ```
 
    > **_NOTE:_** port_number defaults to 8080
