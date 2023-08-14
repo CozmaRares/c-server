@@ -31,14 +31,61 @@ other server-side functionality required by the application.
 
 ## Getting Started
 
-Make sure you have _gcc_ and _make_ installed.
+### Prerequisites
 
-- download or clone the repository
-- run `make` or `make debug` to build the code
-- run `./build/main port_number` or `./build/main` (port_number defaults to 8080)
-  to start the server
-- (optinal) add you own websites
-- visit `localhost:port_number` or `localhost:8080`
+- gcc
+
+  Debian/Ubuntu:
+
+  ```sh
+  sudo apt install gcc
+  ```
+
+- make
+
+  Debian/Ubuntu:
+
+  ```sh
+  sudo apt install make
+  ```
+
+### Installation
+
+1. Clone the repo
+
+   ```sh
+   git clone https://github.com/CozmaRares/c-server.git
+   ```
+
+2. Build the project
+
+   ```sh
+   make
+   ```
+
+   or
+
+   ```sh
+   make debug
+   ```
+
+3. Start the server
+
+   ```sh
+   ./build/main
+   ```
+
+   or
+
+   ```sh
+   ./build/main port_number
+   ```
+
+   > **_NOTE:_** port_number defaults to 8080
+
+4. (optional) Add you own website
+
+5. Visit `localhost:8080` or `localhost:port_number`
 
 ## Reflection
 
