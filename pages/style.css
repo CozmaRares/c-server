@@ -1,3 +1,29 @@
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+}
+
 html {
-  background-color: #e5e5e5;
+  background-color: #262626;
+  color:white;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  flex-direction: column;
+}
+
+h1 {
+  font-size: 5rem;
+  letter-spacing:10px;
+}
+
+p {
+  font-size: 2rem;
 }

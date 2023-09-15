@@ -3,7 +3,6 @@ CCFLAGS = -Wall -fdiagnostics-color=always -Wextra -Wconversion
 
 BUILD = build
 SRC = src
-TEST= test
 BACKEND = $(SRC)/backend
 UTILS = $(SRC)/utils
 DS = $(UTILS)/ds
@@ -22,5 +21,3 @@ build: $(srcs)
 .PHONY: clean
 clean:
 	rm -r build/*
-	rm -r test/build/*
-

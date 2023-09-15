@@ -1,1 +1,1 @@
-document.querySelector("#fill-in").textContent = "Filled with JS";
+document.querySelector("#hello").textContent = "Hello from JavaScript!";
