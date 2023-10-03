@@ -10,11 +10,9 @@ SRCS = $(SRC)/main.c $(BACKEND)/server.c $(BACKEND)/http.c $(DS)/dict.c $(DS)/qu
 
 all: debug
 
-.PHONY: debug
 debug: $(srcs)
 	$(CC) $(SRCS) -o $(BUILD)/main $(CCFLAGS) -g
 
-.PHONY: build
 build: $(srcs)
 	$(CC) $(SRCS) -o $(BUILD)/main_release $(CCFLAGS) -O2
 
